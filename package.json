@@ -1,1 +1,17 @@
-
+{
+  "name": "roblox-admin-panel",
+  "version": "1.0.0",
+  "description": "Web-based Roblox admin panel with Google Sheets integration",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.3.1",
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "googleapis": "^126.0.0"
+  }
+}
