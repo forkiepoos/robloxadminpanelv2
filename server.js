@@ -1,80 +1,68 @@
-require('dotenv').config();
-const express = require('express');
-const session = require('express-session');
-const bodyParser = require('body-parser');
-const { google } = require('googleapis');
-const path = require('path');
+// server.js
+import express from 'express';
+import session from 'express-session';
+import bodyParser from 'body-parser';
+import path from 'path';
+import { google } from 'googleapis';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SHEET_ID = process.env.SHEET_ID;
+const SERVICE_ACCOUNT_EMAIL = process.env.SERVICE_ACCOUNT_EMAIL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
 
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-  secret: 'your-secret', // Change in production
+  secret: 'secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 15 * 60 * 1000 } // 15 minutes
+  cookie: { maxAge: 15 * 60 * 1000 } // 15 mins
 }));
+app.use(express.static(path.join(process.cwd(), 'public')));
 
-// ----------- GOOGLE SHEETS SETUP -------------
-async function getSheetsClient() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      type: 'service_account',
-      project_id: process.env.GCP_PROJECT_ID,
-      private_key_id: process.env.GCP_PRIVATE_KEY_ID,
-      private_key: process.env.GCP_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      client_email: process.env.GCP_CLIENT_EMAIL,
-      client_id: process.env.GCP_CLIENT_ID
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets']
-  });
-  const sheets = google.sheets({ version: 'v4', auth });
-  return sheets;
+function getSheetsClient() {
+  const auth = new google.auth.JWT(
+    SERVICE_ACCOUNT_EMAIL,
+    null,
+    PRIVATE_KEY,
+    ['https://www.googleapis.com/auth/spreadsheets']
+  );
+  return google.sheets({ version: 'v4', auth });
 }
 
 async function getSheetData(sheets, sheetName) {
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.SHEET_ID,
-    range: `${sheetName}!A2:F`
+    spreadsheetId: SHEET_ID,
+    range: `${sheetName}!A2:Z` // skip header
   });
-
-  return (res.data.values || []).map((row, index) => ({
-    id: row[0],
-    targetUser: row[1],
-    reason: row[2],
-    evidence: row[3]?.split(', ') || [],
-    duration: row[4],
-    status: row[5] || 'Pending',
-    index
-  }));
+  return res.data.values || [];
 }
 
-async function appendRow(sheets, sheetName, values) {
+async function appendRow(sheets, sheetName, row) {
   await sheets.spreadsheets.values.append({
-    spreadsheetId: process.env.SHEET_ID,
-    range: `${sheetName}!A:F`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: [values]
-    }
+    spreadsheetId: SHEET_ID,
+    range: `${sheetName}!A:Z`,
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    resource: { values: [row] }
   });
 }
 
 async function deleteRow(sheets, sheetName, rowIndex) {
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: process.env.SHEET_ID });
-  const sheet = meta.data.sheets.find(s => s.properties.title === sheetName);
   await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: process.env.SHEET_ID,
-    requestBody: {
+    spreadsheetId: SHEET_ID,
+    resource: {
       requests: [{
         deleteDimension: {
           range: {
-            sheetId: sheet.properties.sheetId,
+            sheetId: 0, // assuming sheet ID 0; change if needed
             dimension: 'ROWS',
-            startIndex: rowIndex - 1,
-            endIndex: rowIndex
+            startIndex: rowIndex,
+            endIndex: rowIndex + 1
           }
         }
       }]
@@ -82,122 +70,112 @@ async function deleteRow(sheets, sheetName, rowIndex) {
   });
 }
 
-// ----------- ROUTES -------------
-
+// Authentication (Login)
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const sheets = await getSheetsClient();
-  const usersRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.SHEET_ID,
-    range: 'Users!A2:C'
-  });
-  const users = usersRes.data.values || [];
-
+  const sheets = getSheetsClient();
+  const users = await getSheetData(await sheets, 'Users');
   const user = users.find(u => u[0] === username && u[1] === password);
-  if (!user) return res.status(401).send('Unauthorized');
-
-  req.session.user = { username, permissionLevel: parseInt(user[2] || '1') };
-  res.sendStatus(200);
+  if (!user) return res.status(401).send('Invalid credentials');
+  req.session.user = { username, permissionLevel: parseInt(user[2]) };
+  res.redirect('/dashboard.html');
 });
 
+// Get Session Info
+app.get('/api/session', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not logged in' });
+  res.json(req.session.user);
+});
+
+// Logout
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => res.sendStatus(200));
-});
-
-app.get('/api/logs', async (req, res) => {
-  const sheets = await getSheetsClient();
-  const logsRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.SHEET_ID,
-    range: 'Logs!A2:F'
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.redirect('/login.html');
   });
-
-  const logs = (logsRes.data.values || []).map((row, index) => ({
-    id: `${index}`,
-    action: row[0],
-    targetUser: row[1],
-    reason: row[2],
-    evidence: row[3],
-    duration: row[4],
-    timestamp: row[5]
-  })).reverse(); // Most recent first
-
-  res.json(logs);
 });
 
+// Submit Action (Ban/Kick/Warn)
 app.post('/api/submit-action', async (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(403).send('Forbidden');
 
   const { action, targetUser, reason, evidence, duration } = req.body;
-  const timestamp = new Date().toLocaleString('en-US', { timeZone: 'UTC' });
+  const allowed = {
+    'warn': [1, 2, 3],
+    'kick': [2, 3],
+    'ban': [3]
+  };
 
-  const sheets = await getSheetsClient();
-  await appendRow(sheets, 'Logs', [
-    action, targetUser, reason, evidence.join(', '), duration, timestamp
+  if (!allowed[action.toLowerCase()]?.includes(user.permissionLevel)) {
+    return res.status(403).send('Not allowed for your level');
+  }
+
+  const timestamp = new Date().toLocaleString('en-US', { timeZone: 'UTC' });
+  const sheets = getSheetsClient();
+  await appendRow(await sheets, 'Logs', [
+    action,
+    targetUser,
+    `${user.username}: ${reason}`,
+    evidence.join(', '),
+    duration || 'N/A',
+    timestamp
   ]);
 
   res.sendStatus(200);
 });
 
+// Submit Ban Request (Level 1 & 2)
 app.post('/api/ban-request', async (req, res) => {
   const user = req.session.user;
   if (!user || user.permissionLevel >= 3) return res.status(403).send('Forbidden');
 
   const { targetUser, reason, evidence, duration } = req.body;
-  const sheets = await getSheetsClient();
+  const sheets = getSheetsClient();
   const id = `${Date.now()}`;
-  await appendRow(sheets, 'BanRequests', [
-    id, targetUser, reason, evidence.join(', '), duration, 'Pending'
+
+  await appendRow(await sheets, 'BanRequests', [
+    id,
+    targetUser,
+    `${user.username}: ${reason}`,
+    evidence.join(', '),
+    duration,
+    'Pending'
   ]);
 
   res.sendStatus(200);
 });
 
+// Get Ban Requests
 app.get('/api/ban-requests', async (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(403).send('Forbidden');
 
-  const sheets = await getSheetsClient();
-  const requests = await getSheetData(sheets, 'BanRequests');
+  const sheets = getSheetsClient();
+  const requests = await getSheetData(await sheets, 'BanRequests');
 
-  const ownRequests = requests.filter(r => r.status === 'Pending' && r.reason.includes(user.username));
-  const visibleRequests = user.permissionLevel === 3 ? requests : [];
-  res.json({ permissionLevel: user.permissionLevel, requests: visibleRequests, ownRequests });
+  const visible = user.permissionLevel === 3
+    ? requests
+    : requests.filter(r => r[2]?.includes(user.username));
+
+  res.json({ permissionLevel: user.permissionLevel, requests: visible });
 });
 
-app.post('/api/handle-request', async (req, res) => {
-  const { id, action } = req.body;
-  const user = req.session.user;
-  if (!user || user.permissionLevel !== 3) return res.status(403).send('Forbidden');
-
-  const sheets = await getSheetsClient();
-  const requests = await getSheetData(sheets, 'BanRequests');
-  const rowIndex = requests.find(r => r.id === id)?.index;
-  const request = requests.find(r => r.id === id);
-  if (!request) return res.status(404).send('Not found');
-
-  if (action === 'accept') {
-    const timestamp = new Date().toLocaleString('en-US', { timeZone: 'UTC' });
-    await appendRow(sheets, 'Logs', [
-      'Ban', request.targetUser, request.reason, request.evidence.join(', '), request.duration, timestamp
-    ]);
-  }
-
-  await deleteRow(sheets, 'BanRequests', rowIndex + 2); // +2 for header and 0-index
-  res.sendStatus(200);
-});
-
+// Delete Log (Level 3 only)
 app.post('/api/delete-log', async (req, res) => {
   const user = req.session.user;
   if (!user || user.permissionLevel < 3) return res.status(403).send('Forbidden');
 
   const { id } = req.body;
-  const sheets = await getSheetsClient();
-  await deleteRow(sheets, 'Logs', parseInt(id) + 2);
+  const sheets = getSheetsClient();
+
+  await deleteRow(await sheets, 'Logs', parseInt(id) + 1); // +1 for header offset
   res.sendStatus(200);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Fallback to login if route not found
+app.get('*', (req, res) => {
+  res.redirect('/login.html');
 });
 
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
