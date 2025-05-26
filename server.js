@@ -1,181 +1,152 @@
-// server.js
+// server/server.js
 import express from 'express';
 import session from 'express-session';
-import bodyParser from 'body-parser';
-import path from 'path';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
+import bodyParser from 'body-parser';
+import cors from 'cors';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 const SHEET_ID = process.env.SHEET_ID;
-const SERVICE_ACCOUNT_EMAIL = process.env.SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
+const SERVICE_ACCOUNT_EMAIL = process.env.SERVICE_ACCOUNT_EMAIL;
 
+const auth = new google.auth.JWT(
+  SERVICE_ACCOUNT_EMAIL,
+  null,
+  PRIVATE_KEY,
+  ['https://www.googleapis.com/auth/spreadsheets']
+);
+
+const sheets = google.sheets({ version: 'v4', auth });
+
+app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({
-  secret: 'secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 15 * 60 * 1000 } // 15 mins
-}));
-app.use(express.static(path.join(process.cwd(), 'public')));
+app.use(
+  session({
+    secret: 'supersecretkey',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { maxAge: 15 * 60 * 1000 },
+  })
+);
 
-function getSheetsClient() {
-  const auth = new google.auth.JWT(
-    SERVICE_ACCOUNT_EMAIL,
-    null,
-    PRIVATE_KEY,
-    ['https://www.googleapis.com/auth/spreadsheets']
-  );
-  return google.sheets({ version: 'v4', auth });
+function formatTimestamp() {
+  const now = new Date();
+  return now.toLocaleString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
-async function getSheetData(sheets, sheetName) {
+async function getSheetData(range) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: `${sheetName}!A2:Z` // skip header
+    range,
   });
   return res.data.values || [];
 }
 
-async function appendRow(sheets, sheetName, row) {
+async function appendToSheet(range, values) {
   await sheets.spreadsheets.values.append({
     spreadsheetId: SHEET_ID,
-    range: `${sheetName}!A:Z`,
+    range,
     valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS',
-    resource: { values: [row] }
+    resource: { values: [values] },
   });
 }
 
-async function deleteRow(sheets, sheetName, rowIndex) {
-  await sheets.spreadsheets.batchUpdate({
+async function writeSheet(range, values) {
+  await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    resource: {
-      requests: [{
-        deleteDimension: {
-          range: {
-            sheetId: 0, // assuming sheet ID 0; change if needed
-            dimension: 'ROWS',
-            startIndex: rowIndex,
-            endIndex: rowIndex + 1
-          }
-        }
-      }]
-    }
+    range,
+    valueInputOption: 'RAW',
+    resource: { values },
   });
 }
 
-// Authentication (Login)
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const sheets = getSheetsClient();
-  const users = await getSheetData(await sheets, 'Users');
-  const user = users.find(u => u[0] === username && u[1] === password);
-  if (!user) return res.status(401).send('Invalid credentials');
-  req.session.user = { username, permissionLevel: parseInt(user[2]) };
-  res.redirect('/dashboard.html');
+  const users = await getSheetData('Users!A2:C');
+  const user = users.find(([u, p]) => u === username && p === password);
+  if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+
+  req.session.user = { username, permission: parseInt(user[2]) };
+  res.json({ message: 'Login successful', permission: parseInt(user[2]) });
 });
 
-// Get Session Info
-app.get('/api/session', (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: 'Not logged in' });
-  res.json(req.session.user);
-});
-
-// Logout
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie('connect.sid');
-    res.redirect('/login.html');
-  });
+  req.session.destroy(() => res.json({ message: 'Logged out' }));
 });
 
-// Submit Action (Ban/Kick/Warn)
+app.get('/api/logs', async (req, res) => {
+  const logs = await getSheetData('Logs!A2:G');
+  res.json(logs.reverse());
+});
+
+app.post('/api/delete-log', async (req, res) => {
+  const { index } = req.body;
+  const logs = await getSheetData('Logs!A2:G');
+  logs.splice(logs.length - index - 1, 1);
+  await writeSheet('Logs!A2', logs);
+  res.json({ message: 'Log deleted' });
+});
+
 app.post('/api/submit-action', async (req, res) => {
+  const { type, target, reason, evidence, duration } = req.body;
   const user = req.session.user;
-  if (!user) return res.status(403).send('Forbidden');
+  if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
-  const { action, targetUser, reason, evidence, duration } = req.body;
-  const allowed = {
-    'warn': [1, 2, 3],
-    'kick': [2, 3],
-    'ban': [3]
-  };
-
-  if (!allowed[action.toLowerCase()]?.includes(user.permissionLevel)) {
-    return res.status(403).send('Not allowed for your level');
+  const perms = { warn: 1, kick: 2, ban: 3 };
+  if (user.permission < perms[type]) {
+    return res.status(403).json({ message: 'Insufficient permissions' });
   }
 
-  const timestamp = new Date().toLocaleString('en-US', { timeZone: 'UTC' });
-  const sheets = getSheetsClient();
-  await appendRow(await sheets, 'Logs', [
-    action,
-    targetUser,
-    `${user.username}: ${reason}`,
-    evidence.join(', '),
-    duration || 'N/A',
-    timestamp
-  ]);
-
-  res.sendStatus(200);
+  const timestamp = formatTimestamp();
+  await appendToSheet('Logs!A2', [user.username, target, type, reason, evidence.join(','), duration || '', timestamp]);
+  res.json({ message: 'Action logged' });
 });
 
-// Submit Ban Request (Level 1 & 2)
-app.post('/api/ban-request', async (req, res) => {
+app.post('/api/submit-ban-request', async (req, res) => {
+  const { target, reason, evidence, duration } = req.body;
   const user = req.session.user;
-  if (!user || user.permissionLevel >= 3) return res.status(403).send('Forbidden');
+  if (!user || user.permission >= 3) return res.status(403).json({ message: 'Unauthorized' });
 
-  const { targetUser, reason, evidence, duration } = req.body;
-  const sheets = getSheetsClient();
-  const id = `${Date.now()}`;
-
-  await appendRow(await sheets, 'BanRequests', [
-    id,
-    targetUser,
-    `${user.username}: ${reason}`,
-    evidence.join(', '),
-    duration,
-    'Pending'
-  ]);
-
-  res.sendStatus(200);
+  const timestamp = formatTimestamp();
+  await appendToSheet('BanRequests!A2', [user.username, target, reason, evidence.join(','), duration, timestamp, 'Pending']);
+  res.json({ message: 'Ban request submitted' });
 });
 
-// Get Ban Requests
 app.get('/api/ban-requests', async (req, res) => {
   const user = req.session.user;
-  if (!user) return res.status(403).send('Forbidden');
+  if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
-  const sheets = getSheetsClient();
-  const requests = await getSheetData(await sheets, 'BanRequests');
-
-  const visible = user.permissionLevel === 3
-    ? requests
-    : requests.filter(r => r[2]?.includes(user.username));
-
-  res.json({ permissionLevel: user.permissionLevel, requests: visible });
+  const rows = await getSheetData('BanRequests!A2:G');
+  if (user.permission === 3) {
+    res.json(rows);
+  } else {
+    const filtered = rows.filter(row => row[0] === user.username);
+    res.json(filtered);
+  }
 });
 
-// Delete Log (Level 3 only)
-app.post('/api/delete-log', async (req, res) => {
+app.post('/api/review-ban-request', async (req, res) => {
+  const { index, decision } = req.body;
   const user = req.session.user;
-  if (!user || user.permissionLevel < 3) return res.status(403).send('Forbidden');
+  if (!user || user.permission < 3) return res.status(403).json({ message: 'Forbidden' });
 
-  const { id } = req.body;
-  const sheets = getSheetsClient();
-
-  await deleteRow(await sheets, 'Logs', parseInt(id) + 1); // +1 for header offset
-  res.sendStatus(200);
-});
-
-// Fallback to login if route not found
-app.get('*', (req, res) => {
-  res.redirect('/login.html');
+  const rows = await getSheetData('BanRequests!A2:G');
+  rows[rows.length - index - 1][6] = decision;
+  await writeSheet('BanRequests!A2', rows);
+  res.json({ message: 'Ban request reviewed' });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
