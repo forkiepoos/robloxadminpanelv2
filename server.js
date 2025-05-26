@@ -180,6 +180,16 @@ app.get("/api/my-ban-requests", async (req, res) => {
   const mine = rows.filter((r) => r.RequestedBy === user.username);
   res.json(mine.map((r, i) => ({ id: i + 2, ...r._rawData })).reverse());
 });
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve login page at root
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
