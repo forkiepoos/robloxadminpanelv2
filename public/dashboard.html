@@ -21,5 +21,45 @@
         <option value="Ban">Ban</option>
       </select>
 
-      <div id="durationGroup" class=
+      <div id="durationGroup" class="hidden">
+        <select id="duration" class="w-full p-2 border rounded">
+          <option value="1 Day">1 Day</option>
+          <option value="3 Days">3 Days</option>
+          <option value="10 Days">10 Days</option>
+          <option value="14 Days">14 Days</option>
+          <option value="Permanent">Permanent</option>
+        </select>
+      </div>
 
+      <input id="targetUser" placeholder="Target Username" required class="w-full p-2 border rounded" />
+      <input id="reason" placeholder="Reason" required class="w-full p-2 border rounded" />
+
+      <div id="evidenceList" class="space-y-2">
+        <div class="flex items-center gap-2">
+          <input type="text" class="w-full p-2 border rounded" placeholder="Evidence Link" />
+          <span class="text-sm text-gray-500">1/3</span>
+        </div>
+      </div>
+      <button type="button" id="addEvidence" class="text-blue-500 text-sm">+ Add Evidence</button>
+
+      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Submit Action</button>
+    </form>
+
+    <hr class="my-6">
+
+    <div>
+      <h2 class="text-xl font-semibold mb-2">Audit Logs</h2>
+      <div id="logs" class="space-y-2"></div>
+    </div>
+
+    <hr class="my-6">
+
+    <div id="banRequestPanel">
+      <h2 class="text-xl font-semibold mb-2">Ban Requests</h2>
+      <div id="banRequestContent">Loading...</div>
+    </div>
+  </div>
+
+  <script src="/scripts/dashboard.js"></script>
+</body>
+</html>
