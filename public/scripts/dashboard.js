@@ -1,147 +1,153 @@
 // public/scripts/dashboard.js
 
-let permissionLevel = 0;
-let evidenceCount = 1;
+let permission = 0;
+let evidenceLinks = [];
+const evidenceCounter = document.getElementById("evidence-counter");
+const evidenceInput = document.getElementById("evidence-input");
+const evidenceAddBtn = document.getElementById("evidence-add");
+const evidenceList = document.getElementById("evidence-list");
 
-const logoutBtn = document.getElementById('logoutBtn');
-const actionSelect = document.getElementById('action');
-const durationGroup = document.getElementById('durationGroup');
-const addEvidenceBtn = document.getElementById('addEvidence');
-const evidenceList = document.getElementById('evidenceList');
-const logsContainer = document.getElementById('logs');
-const banRequestContent = document.getElementById('banRequestContent');
+window.onload = async () => {
+  await fetchPermission();
+  setupEvidence();
+  loadLogs();
+  if (permission < 3) loadMyBanRequests();
+  else loadBanReviews();
+};
 
-// Logout
-logoutBtn.addEventListener('click', async () => {
-  await fetch('/api/logout');
-  window.location.href = '/login.html';
-});
-
-// Show/hide duration field
-actionSelect.addEventListener('change', () => {
-  durationGroup.classList.toggle('hidden', actionSelect.value !== 'Ban');
-});
-
-// Add evidence inputs
-addEvidenceBtn.addEventListener('click', () => {
-  if (evidenceCount >= 3) return;
-  evidenceCount++;
-  const div = document.createElement('div');
-  div.className = 'flex items-center gap-2';
-  div.innerHTML = `
-    <input type="text" class="w-full p-2 border rounded" placeholder="Evidence Link" />
-    <span class="text-sm text-gray-500">${evidenceCount}/3</span>
-  `;
-  evidenceList.appendChild(div);
-});
-
-// Submit action
-const actionForm = document.getElementById('actionForm');
-actionForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const action = actionSelect.value;
-  const duration = document.getElementById('duration').value;
-  const targetUser = document.getElementById('targetUser').value;
-  const reason = document.getElementById('reason').value;
-  const evidenceInputs = evidenceList.querySelectorAll('input');
-
-  if (evidenceInputs.length < 3 || [...evidenceInputs].some(el => !el.value)) {
-    alert('3 valid evidence links are required.');
-    return;
-  }
-
-  const evidence = [...evidenceInputs].map(el => el.value);
-  const payload = { action, duration, targetUser, reason, evidence };
-
-  const route = (permissionLevel < 3 && action === 'Ban') ? '/api/ban-request' : '/api/submit-action';
-
-  const res = await fetch(route, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (res.ok) {
-    alert('Submitted successfully.');
-    actionForm.reset();
-    evidenceList.innerHTML = '';
-    evidenceCount = 1;
-    evidenceList.innerHTML = `
-      <div class="flex items-center gap-2">
-        <input type="text" class="w-full p-2 border rounded" placeholder="Evidence Link" />
-        <span class="text-sm text-gray-500">1/3</span>
-      </div>`;
-    loadLogs();
-    loadBanRequests();
-  } else {
-    alert('Failed to submit.');
-  }
-});
-
-// Load logs
-async function loadLogs() {
-  const res = await fetch('/api/logs');
-  const data = await res.json();
-  logsContainer.innerHTML = data.map(log => `
-    <div class="border p-3 rounded shadow flex justify-between items-center">
-      <div>
-        <p><strong>${log.action}</strong> on <strong>${log.targetUser}</strong></p>
-        <p class="text-sm text-gray-600">${log.reason}</p>
-        <p class="text-xs text-gray-400">${log.timestamp}</p>
+async function fetchPermission() {
+  const res = await fetch("/api/logs");
+  if (res.status === 401) return (window.location.href = "/");
+  const logs = await res.json();
+  document.getElementById("log-container").innerHTML = logs
+    .map(
+      (log) => `
+      <div class="bg-white shadow-md rounded p-4 mb-2">
+        <strong>${log[0]}</strong> ${log[2]}ed <strong>${log[1]}</strong><br/>
+        Reason: ${log[3]}<br/>
+        Duration: ${log[5] || "-"}<br/>
+        Timestamp: ${log[6]}<br/>
+        <button onclick="deleteLog(${log.id})" class="text-red-500">Delete</button>
       </div>
-      <button onclick="deleteLog('${log.id}')" class="text-red-500 text-sm">Delete</button>
-    </div>`).join('');
+    `
+    )
+    .join("");
+}
+
+function setupEvidence() {
+  evidenceAddBtn.addEventListener("click", () => {
+    if (evidenceLinks.length >= 3) return;
+    if (evidenceInput.value.trim()) {
+      evidenceLinks.push(evidenceInput.value.trim());
+      evidenceInput.value = "";
+      evidenceCounter.textContent = `${evidenceLinks.length}/3`;
+      const li = document.createElement("li");
+      li.textContent = evidenceLinks[evidenceLinks.length - 1];
+      evidenceList.appendChild(li);
+    }
+  });
+}
+
+async function submitAction() {
+  const action = document.getElementById("action-type").value;
+  const target = document.getElementById("target").value;
+  const reason = document.getElementById("reason").value;
+  const duration = document.getElementById("duration").value;
+
+  if (evidenceLinks.length !== 3) return alert("You must provide exactly 3 evidence links.");
+  const body = {
+    type: action,
+    reason,
+    target,
+    evidence: evidenceLinks,
+    duration: action === "Ban" ? duration : "",
+  };
+
+  const res = await fetch("/api/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const result = await res.json();
+  if (result.success) {
+    alert("Action submitted");
+    location.reload();
+  } else {
+    alert("Submission failed");
+  }
 }
 
 async function deleteLog(id) {
-  if (!confirm('Are you sure you want to delete this log?')) return;
-  await fetch('/api/delete-log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id })
+  await fetch("/api/delete-log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rowId: id }),
   });
-  loadLogs();
+  location.reload();
 }
 
-// Load ban requests
-async function loadBanRequests() {
-  const res = await fetch('/api/ban-requests');
-  const { permissionLevel: level, requests, ownRequests } = await res.json();
-  permissionLevel = level;
+async function submitBanRequest() {
+  const target = document.getElementById("br-target").value;
+  const reason = document.getElementById("br-reason").value;
+  const duration = document.getElementById("br-duration").value;
+  if (evidenceLinks.length !== 3) return alert("Exactly 3 evidence links required");
 
-  if (level === 3) {
-    banRequestContent.innerHTML = requests.map(req => `
-      <div class="border p-3 rounded shadow">
-        <p><strong>${req.targetUser}</strong> — ${req.duration}</p>
-        <p>${req.reason}</p>
-        <div class="flex gap-2 text-blue-500 text-sm">
-          ${req.evidence.map(link => `<a href="${link}" target="_blank">Evidence</a>`).join(', ')}
-        </div>
-        <div class="flex gap-2 mt-2">
-          <button class="bg-green-500 text-white px-2 py-1 rounded" onclick="handleRequest('${req.id}', 'accept')">Accept</button>
-          <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="handleRequest('${req.id}', 'decline')">Decline</button>
-        </div>
-      </div>`).join('');
-  } else {
-    banRequestContent.innerHTML = ownRequests.map(req => `
-      <div class="border p-3 rounded shadow">
-        <p><strong>${req.targetUser}</strong> — ${req.duration}</p>
-        <p>${req.reason}</p>
-        <p class="text-sm">Status: ${req.status}</p>
-      </div>`).join('');
+  const res = await fetch("/api/submit-ban-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target, reason, evidence: evidenceLinks, duration }),
+  });
+  const result = await res.json();
+  if (result.success) {
+    alert("Request submitted");
+    location.reload();
   }
 }
 
-async function handleRequest(id, action) {
-  await fetch('/api/handle-request', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, action })
-  });
-  loadBanRequests();
-  loadLogs();
+async function loadMyBanRequests() {
+  const res = await fetch("/api/my-ban-requests");
+  const data = await res.json();
+  document.getElementById("my-ban-requests").innerHTML = data
+    .map(
+      (r) => `
+      <div class="p-2 border rounded mb-2">
+        Target: ${r.target}<br/>
+        Reason: ${r.reason}<br/>
+        Duration: ${r.duration}<br/>
+        Status: ${r.status}
+      </div>
+    `
+    )
+    .join("");
 }
 
-// Init
-loadLogs();
-loadBanRequests();
+async function loadBanReviews() {
+  const res = await fetch("/api/get-ban-requests");
+  const data = await res.json();
+  document.getElementById("review-ban-requests").innerHTML = data
+    .map(
+      (r) => `
+      <div class="p-2 border rounded mb-2">
+        <strong>${r.username}</strong> requested ban on <strong>${r.target}</strong><br/>
+        Reason: ${r.reason}<br/>
+        Duration: ${r.duration}<br/>
+        <button onclick="reviewBan(${r.id}, 'Approved')">Approve</button>
+        <button onclick="reviewBan(${r.id}, 'Denied')">Deny</button>
+      </div>
+    `
+    )
+    .join("");
+}
+
+async function reviewBan(id, action) {
+  const res = await fetch("/api/update-ban-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rowId: id, action }),
+  });
+  const result = await res.json();
+  if (result.success) {
+    alert("Updated");
+    loadBanReviews();
+  }
+}
