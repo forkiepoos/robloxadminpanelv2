@@ -1,28 +1,36 @@
-<!-- public/dashboard.html -->
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-100">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script defer src="/scripts/dashboard.js"></script>
 </head>
-<body class="p-4">
-  <div class="max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow">
-    <div class="flex justify-between items-center mb-4">
-      <h1 class="text-2xl font-bold">Admin Dashboard</h1>
-      <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">Roblox Admin Dashboard</h1>
+      <form action="/api/logout" method="GET">
+        <button class="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
+      </form>
     </div>
 
-    <form id="actionForm" class="space-y-4">
-      <select id="action" class="w-full p-2 border rounded">
-        <option value="Warn">Warn</option>
-        <option value="Kick">Kick</option>
-        <option value="Ban">Ban</option>
-      </select>
+    <!-- Action Form -->
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Take Action</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input id="target" class="border p-2 rounded w-full" type="text" placeholder="Target Username" />
+        <input id="reason" class="border p-2 rounded w-full" type="text" placeholder="Reason" />
 
-      <div id="durationGroup" class="hidden">
-        <select id="duration" class="w-full p-2 border rounded">
+        <select id="action-type" class="border p-2 rounded w-full">
+          <option value="Warn">Warn</option>
+          <option value="Kick">Kick</option>
+          <option value="Ban">Ban</option>
+        </select>
+
+        <select id="duration" class="border p-2 rounded w-full">
+          <option value="">Select Duration</option>
           <option value="1 Day">1 Day</option>
           <option value="3 Days">3 Days</option>
           <option value="10 Days">10 Days</option>
@@ -31,35 +39,52 @@
         </select>
       </div>
 
-      <input id="targetUser" placeholder="Target Username" required class="w-full p-2 border rounded" />
-      <input id="reason" placeholder="Reason" required class="w-full p-2 border rounded" />
-
-      <div id="evidenceList" class="space-y-2">
-        <div class="flex items-center gap-2">
-          <input type="text" class="w-full p-2 border rounded" placeholder="Evidence Link" />
-          <span class="text-sm text-gray-500">1/3</span>
+      <div class="mt-4">
+        <label for="evidence-input" class="block text-sm font-medium text-gray-700">Add Evidence Link</label>
+        <div class="flex gap-2 items-center">
+          <input id="evidence-input" class="border p-2 rounded w-full" type="text" placeholder="Paste evidence link here..." />
+          <button type="button" id="evidence-add" class="bg-blue-500 text-white px-3 py-1 rounded">+</button>
         </div>
+        <p id="evidence-counter" class="text-sm mt-1">0/3</p>
+        <ul id="evidence-list" class="list-disc pl-6 mt-2 text-sm text-gray-700"></ul>
       </div>
-      <button type="button" id="addEvidence" class="text-blue-500 text-sm">+ Add Evidence</button>
 
-      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Submit Action</button>
-    </form>
-
-    <hr class="my-6">
-
-    <div>
-      <h2 class="text-xl font-semibold mb-2">Audit Logs</h2>
-      <div id="logs" class="space-y-2"></div>
+      <button onclick="submitAction()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Submit Action</button>
     </div>
 
-    <hr class="my-6">
-
-    <div id="banRequestPanel">
-      <h2 class="text-xl font-semibold mb-2">Ban Requests</h2>
-      <div id="banRequestContent">Loading...</div>
+    <!-- Audit Logs -->
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Audit Logs</h2>
+      <div id="log-container"></div>
     </div>
+
+    <!-- Ban Request Form (1–2) -->
+    <div class="bg-white p-6 rounded shadow mb-6" id="ban-request-section">
+      <h2 class="text-xl font-semibold mb-4">Submit Ban Request</h2>
+      <input id="br-target" class="border p-2 rounded w-full mb-2" placeholder="Target Username" />
+      <input id="br-reason" class="border p-2 rounded w-full mb-2" placeholder="Reason" />
+      <select id="br-duration" class="border p-2 rounded w-full mb-2">
+        <option value="1 Day">1 Day</option>
+        <option value="3 Days">3 Days</option>
+        <option value="10 Days">10 Days</option>
+        <option value="14 Days">14 Days</option>
+        <option value="Permanent">Permanent</option>
+      </select>
+      <button onclick="submitBanRequest()" class="bg-purple-600 text-white px-4 py-2 rounded">Submit Ban Request</button>
+    </div>
+
+    <!-- My Ban Requests -->
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">My Ban Requests</h2>
+      <div id="my-ban-requests"></div>
+    </div>
+
+    <!-- Ban Requests Review (level 3) -->
+    <div class="bg-white p-6 rounded shadow">
+      <h2 class="text-xl font-semibold mb-4">Review Ban Requests</h2>
+      <div id="review-ban-requests"></div>
+    </div>
+
   </div>
-
-  <script src="/scripts/dashboard.js"></script>
 </body>
 </html>
