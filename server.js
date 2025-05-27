@@ -235,10 +235,12 @@ app.post('/api/ban-request/approve', async (req, res) => {
     if (insertRes.error) throw insertRes.error;
 
     await supabase
-      .from('BanRequests')
-      .update({ reviewed_by: req.session?.user?.username })
-      .update({ status: 'Approved' })
-      .eq('id', id);
+  .from('BanRequests')
+  .update({
+    reviewed_by: req.session?.user?.username,
+    status: 'Approved'
+  })
+  .eq('id', id);
 
     res.send('Approved');
   } catch (err) {
