@@ -56,51 +56,35 @@ async function searchLogs() {
   });
 }
 
-function canEdit(type) {
-  if (!currentUser) return false;
-  if (type === 'Ban') return currentUser.level === 3;
-  if (type === 'Kick') return currentUser.level >= 2;
-  if (type === 'Warn') return currentUser.level >= 1;
-  return false;
-}
-
-async function deleteLog(id) {
-  if (!confirm('Delete this log?')) return;
-  const res = await fetch('/api/logs/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id }),
-  });
-  if (res.ok) searchLogs();
-  else alert('Failed to delete');
-}
-
 function editLog(log) {
   if (!canEdit(log.type)) {
     return alert('❌ Insufficient permission to edit this type of log.');
   }
 
+  // Show modal
+  document.getElementById('edit-modal').classList.remove('hidden');
+
+  // Fill modal with log data
   document.getElementById('edit-log-id').value = log.id;
   document.getElementById('edit-log-type').value = log.type;
   document.getElementById('edit-log-reason').value = log.reason;
   document.getElementById('edit-log-duration').value = log.duration || '';
-  document.getElementById('edit-log-evidence1').value = log.evidence1;
-  document.getElementById('edit-log-evidence2').value = log.evidence2;
-  document.getElementById('edit-log-evidence3').value = log.evidence3;
-
-  document.getElementById('edit-modal').classList.remove('hidden');
+  document.getElementById('edit-log-evidence1').value = log.evidence1 || '';
+  document.getElementById('edit-log-evidence2').value = log.evidence2 || '';
+  document.getElementById('edit-log-evidence3').value = log.evidence3 || '';
 }
 
+// Save edited log
 document.getElementById('edit-log-form').addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const id = document.getElementById('edit-log-id').value;
   const type = document.getElementById('edit-log-type').value;
-  const reason = document.getElementById('edit-log-reason').value;
+  const reason = document.getElementById('edit-log-reason').value.trim();
   const duration = type === 'Ban' ? document.getElementById('edit-log-duration').value : '';
-  const evidence1 = document.getElementById('edit-log-evidence1').value;
-  const evidence2 = document.getElementById('edit-log-evidence2').value;
-  const evidence3 = document.getElementById('edit-log-evidence3').value;
+  const evidence1 = document.getElementById('edit-log-evidence1').value.trim();
+  const evidence2 = document.getElementById('edit-log-evidence2').value.trim();
+  const evidence3 = document.getElementById('edit-log-evidence3').value.trim();
 
   const res = await fetch('/api/logs/edit', {
     method: 'POST',
@@ -110,14 +94,16 @@ document.getElementById('edit-log-form').addEventListener('submit', async (e) =>
 
   if (res.ok) {
     document.getElementById('edit-modal').classList.add('hidden');
-    searchLogs();
+    searchLogs(); // refresh
   } else {
-    alert('Failed to update log.');
+    alert(await res.text());
   }
 });
 
+// Cancel button closes the modal
 document.getElementById('cancel-edit').addEventListener('click', () => {
   document.getElementById('edit-modal').classList.add('hidden');
 });
+
 
 getUser();
