@@ -82,7 +82,7 @@ banRequestFormElement.addEventListener('submit', async (e) => {
 
   if (!target || !reason || banEvidenceLinks.length !== 3) return alert('Please fill out all fields and add 3 evidence links.');
 
-  const res = await fetch('/api/submit-action', {
+  const res = await fetch('/api/submiy-ban-request', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
