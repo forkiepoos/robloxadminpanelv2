@@ -26,8 +26,9 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 
 // ---------------- LOGIN ----------------
 app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-  console.log('Login attempt:', username, password);
+ const username = req.body.username.trim();
+const password = req.body.password.trim();
+  console.log(`Checking username: '${username}', password: '${password}'`);
 
   const { data, error } = await supabase
     .from('Users')
@@ -35,7 +36,7 @@ app.post('/api/login', async (req, res) => {
     .eq('username', username)
     .eq('password', password)
     .eq('username', username.trim().toLowerCase())
-    .single();
+    .maybesingle();
 
   console.log('Supabase result:', data);
   console.log('Supabase error:', error);
