@@ -338,22 +338,71 @@ app.post('/api/logs/edit', async (req, res) => {
   res.sendStatus(200);
 });
 
-app.get('/api/player-logs/:username', async (req, res) => {
+app.get('/api/player-status/:username', async (req, res) => {
   const username = req.params.username;
 
   const { data, error } = await supabase
     .from('Logs')
     .select('*')
     .eq('target', username)
+    .eq('handled', false) // only unhandled
     .order('timestamp', { ascending: false });
 
-  if (error) {
-    console.error('❌ Supabase error:', error.message);
-    return res.status(500).send('Error fetching logs');
-  }
-
+  if (error) return res.status(500).send('Failed to fetch logs');
   res.json(data);
 });
+
+app.get('/api/punishments/unhandled/:username', async (req, res) => {
+  const username = req.params.username;
+
+  const { data, error } = await supabase
+    .from('Logs')
+    .select('*')
+    .eq('target', username)
+    .eq('handled', false);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const now = new Date();
+
+  const filtered = data.filter(entry => {
+    if (entry.type === 'Ban') {
+      if (!entry.duration || entry.duration === 'Perm') return true;
+
+      const created = new Date(entry.timestamp);
+      const daysMap = {
+        '1 Day': 1,
+        '3 Days': 3,
+        '10 Days': 10,
+        '14 Days': 14,
+        'Perm': Infinity
+      };
+      const durationDays = daysMap[entry.duration] || 0;
+      const expires = new Date(created.getTime() + durationDays * 86400000);
+
+      return now < expires;
+    }
+
+    return true;
+  });
+
+  res.json(filtered);
+});
+
+app.post('/api/punishments/mark-handled', async (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).send('Missing ID');
+
+  const { error } = await supabase
+    .from('Logs')
+    .update({ handled: true })
+    .eq('id', id);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.sendStatus(200);
+});
+
 
 
 
