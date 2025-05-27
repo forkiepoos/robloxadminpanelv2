@@ -8,38 +8,51 @@ async function getUser() {
   currentUser = await res.json();
 }
 
+document.getElementById('search-btn').addEventListener('click', searchLogs);
+
 async function searchLogs() {
-  const username = document.getElementById('search-user').value.trim();
+  const username = document.getElementById('search-username').value.trim();
   if (!username) return alert('Enter a username.');
 
   const res = await fetch(`/api/logs/user/${username}`);
   const logs = await res.json();
 
-  console.log('🔍 Search result:', logs); // Debugging
+  console.log('🔍 Logs fetched:', logs);
 
-  const table = document.getElementById('user-logs-table');
-  table.innerHTML = '';
+  const container = document.getElementById('logs-table-container');
+  const tableBody = document.getElementById('logs-table-body');
+  const searchedUser = document.getElementById('searched-username');
 
-  if (!logs.length) {
-    table.innerHTML = '<tr><td colspan="6" class="text-center py-4">No logs found for that user.</td></tr>';
+  if (!Array.isArray(logs) || logs.length === 0) {
+    container.classList.remove('hidden');
+    searchedUser.textContent = username;
+    tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500 py-4">No logs found for ${username}</td></tr>`;
     return;
   }
+
+  container.classList.remove('hidden');
+  searchedUser.textContent = username;
+  tableBody.innerHTML = '';
 
   logs.forEach(log => {
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td class="border px-2 py-1">${log.type}</td>
-      <td class="border px-2 py-1">${log.target}</td>
-      <td class="border px-2 py-1">${log.reason}</td>
-      <td class="border px-2 py-1">${log.duration || '-'}</td>
-      <td class="border px-2 py-1 text-blue-600">
+      <td class="px-3 py-2 border">${log.type}</td>
+      <td class="px-3 py-2 border">${log.reason}</td>
+      <td class="px-3 py-2 border">${log.duration || '-'}</td>
+      <td class="px-3 py-2 border text-blue-600">
         <a href="${log.evidence1}" target="_blank">1</a> |
         <a href="${log.evidence2}" target="_blank">2</a> |
         <a href="${log.evidence3}" target="_blank">3</a>
       </td>
-      <td class="border px-2 py-1">${log.created_by}</td>
+      <td class="px-3 py-2 border">${log.created_by}</td>
+      <td class="px-3 py-2 border">${new Date(log.timestamp).toLocaleString()}</td>
+      <td class="px-3 py-2 border">
+        <button onclick="editLog(${log.id})" class="text-blue-600 font-bold">✏️</button>
+        <button onclick="deleteLog(${log.id})" class="text-red-600 font-bold ml-2">🗑️</button>
+      </td>
     `;
-    table.appendChild(row);
+    tableBody.appendChild(row);
   });
 }
 
