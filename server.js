@@ -31,7 +31,7 @@ const password = req.body.password.trim();
   console.log(`Checking username: '${username}', password: '${password}'`);
 
   const { data, error } = await supabase
-    .from('Users')
+    .from('users')
     .select('*')
     .eq('username', username)
     .eq('password', password)
