@@ -66,26 +66,32 @@ app.get('/api/user', (req, res) => {
 
 // ---------------- SUBMIT ACTION (warn/kick/ban) ----------------
 app.post('/api/submit-action', async (req, res) => {
-  const user = req.session.user;
-  if (!user) return res.status(401).send('Unauthorized');
+  const { username, reason, action, duration, evidence } = req.body;
 
-  const { type, target, reason, evidence, duration } = req.body;
-  const timestamp = new Date().toISOString();
+  if (!username || !reason || !action || evidence.length !== 3) {
+    return res.status(400).send('Missing required fields');
+  }
 
-  const { error } = await supabase.from('Logs').insert({
-    type,
-    target,
-    reason,
-    evidence1: evidence[0],
-    evidence2: evidence[1],
-    evidence3: evidence[2],
-    duration: type === 'Ban' ? duration : null,
-    created_by: user.username,
-    timestamp,
-  });
+  const { error } = await supabase.from('Logs').insert([
+    {
+      target: username,
+      reason,
+      type: action,
+      duration: action === 'Ban' ? duration : '',
+      evidence1: evidence[0],
+      evidence2: evidence[1],
+      evidence3: evidence[2],
+      created_by: req.session?.user?.username || 'Unknown',
+      timestamp: new Date().toISOString(),
+    },
+  ]);
 
-  if (error) return res.status(500).send('Failed to log action');
-  res.sendStatus(200);
+  if (error) {
+    console.error('❌ Supabase Insert Error:', error);
+    return res.status(500).send('Failed to submit');
+  }
+
+  res.send('Success');
 });
 
 // ---------------- GET AUDIT LOGS ----------------
