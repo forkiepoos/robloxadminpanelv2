@@ -229,24 +229,48 @@ async function loadMyRequests() {
   const res = await fetch('/api/my-ban-requests');
   const data = await res.json();
   const table = document.getElementById('my-requests-table');
-  table.innerHTML = '';
+
+  // Clear previous content
+  table.innerHTML = `
+    <thead class="bg-gray-200">
+      <tr>
+        <th class="px-4 py-2 text-left">Target</th>
+        <th class="px-4 py-2 text-left">Reason</th>
+        <th class="px-4 py-2 text-left">Duration</th>
+        <th class="px-4 py-2 text-left">Evidence</th>
+        <th class="px-4 py-2 text-left">Status</th>
+      </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200"></tbody>
+  `;
+
+  const tbody = table.querySelector('tbody');
 
   data.forEach(req => {
     const row = document.createElement('tr');
+    row.classList.add('hover:bg-gray-50');
     row.innerHTML = `
-      <td class="border px-2 py-1">${req.target}</td>
-      <td class="border px-2 py-1">${req.reason}</td>
-      <td class="border px-2 py-1">${req.duration}</td>
-      <td class="border px-2 py-1 text-blue-600">
+      <td class="px-4 py-2 font-medium text-gray-800">${req.target}</td>
+      <td class="px-4 py-2 text-gray-700">${req.reason}</td>
+      <td class="px-4 py-2 text-gray-700">${req.duration}</td>
+      <td class="px-4 py-2 text-blue-600">
         <a href="${req.evidence1}" target="_blank">1</a> |
         <a href="${req.evidence2}" target="_blank">2</a> |
         <a href="${req.evidence3}" target="_blank">3</a>
       </td>
-      <td class="border px-2 py-1">${req.status}</td>
+      <td class="px-4 py-2">
+        <span class="inline-block px-2 py-1 text-sm rounded 
+          ${req.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+          ${req.status === 'Approved' ? 'bg-green-100 text-green-800' : ''}
+          ${req.status === 'Denied' ? 'bg-red-100 text-red-800' : ''}">
+          ${req.status}
+        </span>
+      </td>
     `;
-    table.appendChild(row);
+    tbody.appendChild(row);
   });
 }
+
 
 async function approveRequest(id) {
   await fetch('/api/ban-request/approve', {
