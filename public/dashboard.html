@@ -50,38 +50,17 @@
       <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Submit Action</button>
     </form>
 
-    <div id="ban-request-form" class="bg-white shadow-md rounded p-4 mb-6">
-      <h2 class="text-xl font-semibold mb-2">Ban Request</h2>
-      <div class="mb-2">
-        <input id="req-target" placeholder="Target Username" class="border p-2 w-full">
-      </div>
-      <div class="mb-2">
-        <input id="req-reason" placeholder="Reason" class="border p-2 w-full">
-      </div>
-      <div class="mb-2">
-        <select id="req-duration" class="border p-2 w-full">
-          <option value="1 Day">1 Day</option>
-          <option value="3 Days">3 Days</option>
-          <option value="10 Days">10 Days</option>
-          <option value="14 Days">14 Days</option>
-          <option value="Perm">Permanent</option>
-        </select>
-      </div>
-      <div class="mb-2">
-        <input id="req-evidence1" placeholder="Evidence Link 1" class="border p-2 w-full">
-      </div>
-      <div class="mb-2">
-        <input id="req-evidence2" placeholder="Evidence Link 2" class="border p-2 w-full">
-      </div>
-      <div class="mb-2">
-        <input id="req-evidence3" placeholder="Evidence Link 3" class="border p-2 w-full">
-      </div>
-      <button type="submit" class="bg-yellow-500 text-white px-4 py-2 rounded">Submit Request</button>
-    </div>
+<!-- SECTION: For Permission Level 3 -->
+<div id="review-ban-requests-section" class="hidden">
+  <h2 class="text-xl font-bold mb-2">Ban Request Review</h2>
+  <table id="review-requests-table" class="min-w-full border text-sm"></table>
+</div>
 
-    <div id="my-requests" class="bg-white shadow-md rounded p-4 mb-6"></div>
-    <div id="review-container" class="bg-white shadow-md rounded p-4 mb-6"></div>
-    <div id="log-container" class="bg-white shadow-md rounded p-4"></div>
-  </div>
+<!-- SECTION: For Permission Level 1–2 -->
+<div id="my-ban-requests-section" class="hidden mt-8">
+  <h2 class="text-xl font-bold mb-2">My Ban Requests</h2>
+  <table id="my-requests-table" class="min-w-full border text-sm"></table>
+</div>
+
 </body>
 </html>
