@@ -141,14 +141,23 @@ actionForm.addEventListener('submit', async (e) => {
 });
 
 async function loadLogs() {
-const res = await fetch('/api/logs');
-if (!res.ok) {
-  const errorText = await res.text(); // not JSON!
-  throw new Error(errorText);
-}
-const logs = await res.json();
+async function loadLogs() {
+  const res = await fetch('/api/logs');
+  if (!res.ok) {
+    const errorText = await res.text(); // not JSON!
+    console.error('❌ Failed to load logs:', errorText);
+    return;
+  }
+
+  const logs = await res.json();
+
+  if (!logContainer) {
+    console.error('❌ logContainer element not found in HTML!');
+    return;
+  }
 
   logContainer.innerHTML = '';
+
   logs.forEach((log) => {
     const div = document.createElement('div');
     div.className = 'log-entry';
