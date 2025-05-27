@@ -34,6 +34,7 @@ app.post('/api/login', async (req, res) => {
     .select('*')
     .eq('username', username)
     .eq('password', password)
+    .eq('username', username.trim().toLowerCase())
     .single();
 
   console.log('Supabase result:', data);
