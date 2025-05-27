@@ -1,22 +1,50 @@
-<!-- public/login.html -->
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-100">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Login</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="flex items-center justify-center h-screen">
-  <div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-sm">
-    <h2 class="text-2xl font-bold mb-4 text-center">Admin Login</h2>
-    <form id="loginForm" class="space-y-4">
-      <input name="username" placeholder="Username" required class="w-full p-2 border rounded" />
-      <input name="password" type="password" placeholder="Password" required class="w-full p-2 border rounded" />
-      <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Login</button>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white shadow-md rounded p-8 w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-6 text-center">Roblox Admin Panel Login</h1>
+    <form id="login-form">
+      <div class="mb-4">
+        <label for="username" class="block text-gray-700">Username</label>
+        <input type="text" id="username" name="username" class="mt-1 p-2 w-full border rounded" required />
+      </div>
+      <div class="mb-6">
+        <label for="password" class="block text-gray-700">Password</label>
+        <input type="password" id="password" name="password" class="mt-1 p-2 w-full border rounded" required />
+      </div>
+      <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Login</button>
     </form>
-    <p id="errorMsg" class="text-red-500 mt-2 hidden">Invalid login</p>
+    <p id="error-message" class="text-red-500 mt-4 hidden text-center">Invalid credentials. Please try again.</p>
   </div>
-  <script src="/scripts/login.js"></script>
+
+  <script>
+    const form = document.getElementById('login-form');
+    const errorMessage = document.getElementById('error-message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (res.ok) {
+        window.location.href = '/dashboard.html';
+      } else {
+        errorMessage.classList.remove('hidden');
+      }
+    });
+  </script>
 </body>
 </html>
