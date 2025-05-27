@@ -128,51 +128,109 @@ app.post('/api/submit-action', async (req, res) => {
 });
 
 // ---------------- GET MY BAN REQUESTS ----------------
-app.get('/api/logs', async (req, res) => {
+app.get('/api/my-ban-requests', async (req, res) => {
   try {
+    const username = req.session?.user?.username;
+    if (!username) return res.status(401).send('Not logged in');
+
     const { data, error } = await supabase
-      .from('Logs')
+      .from('BanRequests')
       .select('*')
+      .eq('created_by', username)
       .order('timestamp', { ascending: false });
 
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    console.error('❌ Failed to fetch logs:', err.message);
-    res.status(500).json({ error: 'Failed to fetch logs' });
+    console.error('❌ Failed to fetch user ban requests:', err.message);
+    res.status(500).send('Failed to load your requests');
   }
 });
+
 
 
 // ---------------- GET ALL BAN REQUESTS (review) ----------------
 app.get('/api/ban-requests', async (req, res) => {
   try {
+    if (!req.session.user || req.session.user.level < 3) {
+      return res.status(403).send('Access denied');
+    }
+
     const { data, error } = await supabase
       .from('BanRequests')
       .select('*')
       .order('timestamp', { ascending: false });
 
     if (error) throw error;
-    res.json(data);
+
+
+// ---------------- UPDATE BAN REQUEST ----------------
+app.post('/api/ban-request/approve', async (req, res) => {
+  try {
+    if (!req.session.user || req.session.user.level < 3) {
+      return res.status(403).send('Access denied');
+    }
+
+    const { id } = req.body;
+
+    const { data: request } = await supabase
+      .from('BanRequests')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (!request) return res.status(404).send('Request not found');
+
+    // insert to Logs
+    const insertRes = await supabase.from('Logs').insert([
+      {
+        type: 'Ban',
+        target: request.target,
+        reason: request.reason,
+        duration: request.duration,
+        evidence1: request.evidence1,
+        evidence2: request.evidence2,
+        evidence3: request.evidence3,
+        created_by: req.session.user.username,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+
+    if (insertRes.error) throw insertRes.error;
+
+    // delete the request or mark as approved
+    await supabase
+      .from('BanRequests')
+      .update({ status: 'Approved' })
+      .eq('id', id);
+
+    res.send('Approved');
   } catch (err) {
-    console.error('❌ Failed to fetch ban requests:', err.message);
-    res.status(500).json({ error: 'Failed to fetch ban requests' });
+    console.error('❌ Approve error:', err.message);
+    res.status(500).send('Approve failed');
   }
 });
 
-// ---------------- UPDATE BAN REQUEST ----------------
-app.post('/api/update-ban-request', async (req, res) => {
-  const user = req.session.user;
-  if (!user || user.level < 3) return res.status(401).send('Unauthorized');
-  const { id, status } = req.body;
+//DENY BAN REQ
+app.post('/api/ban-request/deny', async (req, res) => {
+  try {
+    if (!req.session.user || req.session.user.level < 3) {
+      return res.status(403).send('Access denied');
+    }
 
-  const { error } = await supabase
-    .from('BanRequests')
-    .update({ status, reviewed_by: user.username })
-    .eq('id', id);
+    const { id } = req.body;
 
-  if (error) return res.status(500).send('Failed to update request');
-  res.sendStatus(200);
+    const { error } = await supabase
+      .from('BanRequests')
+      .update({ status: 'Denied' })
+      .eq('id', id);
+
+    if (error) throw error;
+    res.send('Denied');
+  } catch (err) {
+    console.error('❌ Deny error:', err.message);
+    res.status(500).send('Deny failed');
+  }
 });
 
 // ---------------- SERVE LOGIN PAGE ----------------
