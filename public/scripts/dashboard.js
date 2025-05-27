@@ -8,9 +8,9 @@ const evidenceList = document.getElementById('evidence-list');
 const addEvidenceBtn = document.getElementById('add-evidence');
 const logoutBtn = document.getElementById('logout');
 const actionForm = document.getElementById('action-form');
+const reviewContainer = document.getElementById('review-ban-requests-section');
+const myRequestsContainer = document.getElementById('my-ban-requests-section');
 const banRequestForm = document.getElementById('ban-request-form');
-const reviewContainer = document.getElementById('review-container');
-const myRequestsContainer = document.getElementById('my-requests');
 
 let evidenceLinks = [];
 
