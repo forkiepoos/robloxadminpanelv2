@@ -96,9 +96,17 @@
 
 
 <!-- Review Panel (for level 3 only) -->
-<div id="review-ban-requests-section" class="hidden">
-  <table id="review-requests-table"></table>
+<div id="review-ban-requests-section" class="hidden w-full mt-8">
+  <div class="bg-white shadow-lg rounded-lg p-6">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">📋 Pending Ban Requests Review</h2>
+    <div class="overflow-x-auto">
+      <table id="review-requests-table" class="w-full table-auto border-collapse rounded-lg overflow-hidden">
+        <!-- table content injected by JS -->
+      </table>
+    </div>
+  </div>
 </div>
+
 
 <!-- My Requests (for level 1–2) -->
 <div id="my-ban-requests-section" class="hidden">
