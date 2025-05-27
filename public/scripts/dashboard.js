@@ -32,16 +32,16 @@ function adjustUI() {
   if (level < 2) {
     document.getElementById('kick-btn').disabled = true;
   }
-  if (level < 3) {
-    document.getElementById('ban-btn').disabled = true;
-    reviewContainer.style.display = 'none';
-    document.getElementById('my-ban-requests-section').classList.remove('hidden');
-    loadMyRequests();
-  } else {
-    banRequestForm.style.display = 'none';
-    myRequestsContainer.style.display = 'none';
-    document.getElementById('review-ban-requests-section').classList.remove('hidden');
-    loadReviewRequests();
+if (level < 3) {
+  document.getElementById('ban-btn').disabled = true;
+  reviewContainer.style.display = 'none';
+  document.getElementById('my-ban-requests-section').classList.remove('hidden');
+  loadMyRequests();  // ✅
+} else {
+  banRequestForm.style.display = 'none';
+  myRequestsContainer.style.display = 'none';
+  document.getElementById('review-ban-requests-section').classList.remove('hidden');
+  loadReviewRequests();  // ✅
   }
 }
 const banRequestFormElement = document.getElementById('ban-request-form-element');
