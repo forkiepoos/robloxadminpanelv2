@@ -43,6 +43,57 @@ function adjustUI() {
     loadReviewRequests();
   }
 }
+const banRequestFormElement = document.getElementById('ban-request-form-element');
+const banEvidenceInput = document.getElementById('ban-evidence-input');
+const banAddEvidenceBtn = document.getElementById('ban-add-evidence');
+const banEvidenceCounter = document.getElementById('ban-evidence-counter');
+const banEvidenceList = document.getElementById('ban-evidence-list');
+
+let banEvidenceLinks = [];
+
+banAddEvidenceBtn.addEventListener('click', () => {
+  const link = banEvidenceInput.value.trim();
+  if (link && banEvidenceLinks.length < 3) {
+    banEvidenceLinks.push(link);
+    const li = document.createElement('li');
+    li.textContent = `${banEvidenceLinks.length}/3: ${link}`;
+    banEvidenceList.appendChild(li);
+    banEvidenceInput.value = '';
+    banEvidenceCounter.textContent = `${banEvidenceLinks.length}/3`;
+  }
+});
+
+banRequestFormElement.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const target = document.getElementById('ban-target').value.trim();
+  const reason = document.getElementById('ban-reason').value.trim();
+  const duration = document.getElementById('ban-duration').value;
+
+  if (!target || !reason || banEvidenceLinks.length !== 3) return alert('Please fill out all fields and add 3 evidence links.');
+
+  const res = await fetch('/api/submit-action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'Ban',
+      target,
+      reason,
+      duration,
+      evidence: banEvidenceLinks
+    })
+  });
+
+  if (res.ok) {
+    alert('Ban request submitted!');
+    banEvidenceLinks = [];
+    banEvidenceList.innerHTML = '';
+    banEvidenceCounter.textContent = '0/3';
+    banRequestFormElement.reset();
+    loadMyRequests();
+  } else {
+    alert('Failed to submit ban request.');
+  }
+});
 
 
 addEvidenceBtn.addEventListener('click', () => {
