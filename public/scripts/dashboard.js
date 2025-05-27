@@ -119,79 +119,89 @@ async function deleteLog(id) {
   else alert('Failed to delete');
 }
 
-// -------- BAN REQUESTS (1–2) --------
-banRequestForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const target = document.getElementById('req-target').value.trim();
-  const reason = document.getElementById('req-reason').value.trim();
-  const duration = document.getElementById('req-duration').value;
-  const evidence = [
-    document.getElementById('req-evidence1').value,
-    document.getElementById('req-evidence2').value,
-    document.getElementById('req-evidence3').value,
-  ];
-  if (!target || !reason || evidence.some(e => !e)) return alert('Fill all fields');
+const userLevel = session.level;
 
-  const res = await fetch('/api/ban-request', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target, reason, duration, evidence }),
-  });
-
-  if (res.ok) {
-    alert('Request submitted');
-    loadMyBanRequests();
-  } else {
-    alert('Failed to submit');
-  }
-});
-
-async function loadMyBanRequests() {
-  const res = await fetch('/api/my-ban-requests');
-  const data = await res.json();
-  const container = document.getElementById('my-requests');
-  container.innerHTML = '<h3>My Requests</h3>';
-  data.forEach(req => {
-    container.innerHTML += `
-      <div>
-        <strong>${req.target}</strong> (${req.duration}) — ${req.status}
-        <br>Reason: ${req.reason}<br>
-        Evidence: <ul><li>${req.evidence1}</li><li>${req.evidence2}</li><li>${req.evidence3}</li></ul>
-        <hr>
-      </div>
-    `;
-  });
+// Show review panel if permission 3
+if (userLevel === 3) {
+  document.getElementById('review-ban-requests-section').classList.remove('hidden');
+  loadReviewRequests();
 }
 
-// -------- REVIEW PANEL (3) --------
-async function loadAllBanRequests() {
+// Show your requests panel if permission < 3
+if (userLevel < 3) {
+  document.getElementById('my-ban-requests-section').classList.remove('hidden');
+  loadMyRequests();
+}
+
+
+async function loadReviewRequests() {
   const res = await fetch('/api/ban-requests');
   const data = await res.json();
-  const container = document.getElementById('review-container');
-  container.innerHTML = '<h3>Review Ban Requests</h3>';
+  const table = document.getElementById('review-requests-table');
+  table.innerHTML = '';
+
   data.forEach(req => {
-    if (req.status !== 'Pending') return;
-    container.innerHTML += `
-      <div>
-        <strong>${req.target}</strong> (${req.duration}) — Requested by ${req.requested_by}<br>
-        Reason: ${req.reason}<br>
-        Evidence: <ul><li>${req.evidence1}</li><li>${req.evidence2}</li><li>${req.evidence3}</li></ul>
-        <button onclick="reviewBan(${req.id}, 'Approved')">Approve</button>
-        <button onclick="reviewBan(${req.id}, 'Denied')">Deny</button>
-        <hr>
-      </div>
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="border px-2 py-1">${req.target}</td>
+      <td class="border px-2 py-1">${req.reason}</td>
+      <td class="border px-2 py-1">${req.duration}</td>
+      <td class="border px-2 py-1 text-blue-600">
+        <a href="${req.evidence1}" target="_blank">1</a> |
+        <a href="${req.evidence2}" target="_blank">2</a> |
+        <a href="${req.evidence3}" target="_blank">3</a>
+      </td>
+      <td class="border px-2 py-1">${req.status}</td>
+      <td class="border px-2 py-1">
+        ${req.status === 'Pending' ? `
+          <button onclick="approveRequest('${req.id}')" class="text-green-600 font-bold">✅</button>
+          <button onclick="denyRequest('${req.id}')" class="text-red-600 font-bold">❌</button>
+        ` : ''}
+      </td>
     `;
+    table.appendChild(row);
   });
 }
 
-async function reviewBan(id, status) {
-  const res = await fetch('/api/update-ban-request', {
+async function loadMyRequests() {
+  const res = await fetch('/api/my-ban-requests');
+  const data = await res.json();
+  const table = document.getElementById('my-requests-table');
+  table.innerHTML = '';
+
+  data.forEach(req => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="border px-2 py-1">${req.target}</td>
+      <td class="border px-2 py-1">${req.reason}</td>
+      <td class="border px-2 py-1">${req.duration}</td>
+      <td class="border px-2 py-1 text-blue-600">
+        <a href="${req.evidence1}" target="_blank">1</a> |
+        <a href="${req.evidence2}" target="_blank">2</a> |
+        <a href="${req.evidence3}" target="_blank">3</a>
+      </td>
+      <td class="border px-2 py-1">${req.status}</td>
+    `;
+    table.appendChild(row);
+  });
+}
+
+async function approveRequest(id) {
+  await fetch('/api/ban-request/approve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, status }),
+    body: JSON.stringify({ id })
   });
-  if (res.ok) loadAllBanRequests();
-  else alert('Failed to update request');
+  loadReviewRequests(); // refresh
+}
+
+async function denyRequest(id) {
+  await fetch('/api/ban-request/deny', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  });
+  loadReviewRequests(); // refresh
 }
 
 getUser();
