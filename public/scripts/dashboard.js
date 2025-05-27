@@ -44,13 +44,14 @@ function adjustUI() {
     myRequestsContainer.classList.remove('hidden');
     reviewContainer.classList.add('hidden');
     loadMyRequests();
-  } else {
-    // Level 3 sees review panel only
-    banRequestForm.classList.add('hidden');
-    myRequestsContainer.classList.add('hidden');
-    reviewContainer.classList.remove('hidden');
-    loadReviewRequests();
   }
+  if (level >= 3) {
+  reviewContainer.classList.remove('hidden');
+  banRequestForm.classList.add('hidden');
+  myRequestsContainer.classList.add('hidden');
+  loadReviewRequests();  // ✅
+}
+
 }
 
 const banRequestFormElement = document.getElementById('ban-request-form-element');
