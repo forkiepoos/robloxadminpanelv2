@@ -22,7 +22,7 @@ async function getUser() {
   adjustUI();
   loadLogs();
   
-  if (currentUser.level < 3) loadMyBanRequests();
+  if (currentUser.level < 3) loadMyRequests();
 else loadReviewRequests(); // ✅ FIXED
 }
 
