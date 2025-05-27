@@ -68,31 +68,35 @@ app.get('/api/user', (req, res) => {
 app.post('/api/submit-action', async (req, res) => {
   const { username, reason, action, duration, evidence } = req.body;
 
-  if (!username || !reason || !action || evidence.length !== 3) {
+  console.log('▶️ SUBMIT PAYLOAD:', req.body);
+
+  if (!username || !reason || !action || !evidence || evidence.length !== 3) {
     return res.status(400).send('Missing required fields');
   }
 
-  const { error } = await supabase.from('Logs').insert([
-    {
-      target: username,
-      reason,
-      type: action,
-      duration: action === 'Ban' ? duration : '',
-      evidence1: evidence[0],
-      evidence2: evidence[1],
-      evidence3: evidence[2],
-      created_by: req.session?.user?.username || 'Unknown',
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  try {
+    const { error } = await supabase.from('Logs').insert([
+      {
+        type: action,
+        target: username,
+        reason,
+        evidence1: evidence[0],
+        evidence2: evidence[1],
+        evidence3: evidence[2],
+        duration: action === 'Ban' ? duration : '',
+        created_by: req.session?.user?.username || 'Unknown',
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
-  if (error) {
-    console.error('❌ Supabase Insert Error:', error);
-    return res.status(500).send('Failed to submit');
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Failed to insert action log:', err.message);
+    res.status(500).json({ error: 'Insert failed' });
   }
-
-  res.send('Success');
 });
+
 
 // ---------------- GET AUDIT LOGS ----------------
 app.get('/api/logs', async (req, res) => {
@@ -134,21 +138,26 @@ app.get('/api/logs', async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    console.error('❌ /api/logs error:', err);
-    res.status(500).send('Failed to fetch logs');
+    console.error('❌ Failed to fetch logs:', err.message);
+    res.status(500).json({ error: 'Failed to fetch logs' });
   }
 });
 
+
 // ---------------- GET ALL BAN REQUESTS (review) ----------------
 app.get('/api/ban-requests', async (req, res) => {
-  const user = req.session.user;
-  if (!user || user.level < 3) return res.status(401).send('Unauthorized');
-  const { data, error } = await supabase
-    .from('BanRequests')
-    .select('*')
-    .order('id', { ascending: false });
-  if (error) return res.status(500).send('Failed to fetch requests');
-  res.json(data);
+  try {
+    const { data, error } = await supabase
+      .from('BanRequests')
+      .select('*')
+      .order('timestamp', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('❌ Failed to fetch ban requests:', err.message);
+    res.status(500).json({ error: 'Failed to fetch ban requests' });
+  }
 });
 
 // ---------------- UPDATE BAN REQUEST ----------------
