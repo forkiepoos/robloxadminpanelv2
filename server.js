@@ -306,37 +306,35 @@ app.post('/api/logs/delete', async (req, res) => {
 
 // ---------------- EDIT LOG ----------------
 app.post('/api/logs/edit', async (req, res) => {
-  const { id, type, reason, duration } = req.body;
+  const { id, type, reason, duration, evidence1, evidence2, evidence3 } = req.body;
 
-  // Get user from session
-  const user = req.session.user;
-  if (!user) return res.status(401).send('Unauthorized');
+  const updateData = {
+    type,
+    reason,
+    duration: type === 'Ban' ? duration : '',
+    evidence1,
+    evidence2,
+    evidence3
+  };
 
-  // Permission check
-  const canEdit =
-    (type === 'Ban' && user.level === 3) ||
-    (type === 'Kick' && user.level >= 2) ||
-    (type === 'Warn' && user.level >= 1);
+  // If the new type is Ban, reset handled to false
+  if (type === 'Ban') {
+    updateData.handled = false;
+  }
 
-  if (!canEdit) return res.status(403).send('Insufficient permissions');
-
-  // Perform update
   const { error } = await supabase
     .from('Logs')
-    .update({
-      type,
-      reason,
-      duration: type === 'Ban' ? duration : ''
-    })
+    .update(updateData)
     .eq('id', id);
 
   if (error) {
-    console.error('❌ Log update failed:', error.message);
-    return res.status(500).send('Update failed');
+    console.error('❌ Edit error:', error.message);
+    return res.status(500).send('Failed to edit log');
   }
 
   res.sendStatus(200);
 });
+
 
 app.get('/api/player-status/:username', async (req, res) => {
   const username = req.params.username;
