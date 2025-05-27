@@ -236,6 +236,7 @@ app.post('/api/ban-request/approve', async (req, res) => {
 
     await supabase
       .from('BanRequests')
+      .update({ reviewed_by: req.session?.user?.username })
       .update({ status: 'Approved' })
       .eq('id', id);
 
