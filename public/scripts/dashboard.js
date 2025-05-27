@@ -21,10 +21,10 @@ async function getUser() {
   currentUser = data;
   adjustUI();
   loadLogs();
-  
   if (currentUser.level < 3) loadMyRequests();
-else loadReviewRequests(); // ✅ FIXED
+  else loadReviewRequests(); // Updated function name
 }
+
 
 function adjustUI() {
   const level = currentUser.level;
