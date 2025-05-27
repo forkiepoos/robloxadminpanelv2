@@ -4,8 +4,13 @@ import session from 'express-session';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import path from 'node:path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -26,19 +31,19 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 
 // ---------------- LOGIN ----------------
 app.post('/api/login', async (req, res) => {
-const username = req.body.username.trim();
-const password = req.body.password.trim();
+  const username = req.body.username.trim();
+  const password = req.body.password.trim();
 
-const { data, error } = await supabase
-  .from('users')
-  .select('*')
-  .eq('username', username)
-  .eq('password', password)
-  .maybeSingle();
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('username', username)
+    .eq('password', password)
+    .maybeSingle();
 
-console.log('Checking username:', `'${username}'`, 'password:', `'${password}'`);
-console.log('Supabase result:', data);
-console.log('Supabase error:', error);
+  console.log('Checking username:', `'${username}'`, 'password:', `'${password}'`);
+  console.log('Supabase result:', data);
+  console.log('Supabase error:', error);
 
   if (error || !data) return res.status(401).send('Invalid credentials');
 
@@ -49,7 +54,6 @@ console.log('Supabase error:', error);
 
   res.json({ success: true });
 });
-
 
 // ---------------- LOGOUT ----------------
 app.get('/api/logout', (req, res) => {
@@ -76,18 +80,18 @@ app.post('/api/submit-action', async (req, res) => {
 
   try {
     const { error } = await supabase.from('Logs').insert([
-  {
-    type,
-    target,
-    reason,
-    evidence1: evidence[0],
-    evidence2: evidence[1],
-    evidence3: evidence[2],
-    duration: type === 'Ban' ? duration : '',
-    created_by: req.session?.user?.username || 'Unknown',
-    timestamp: new Date().toISOString(),
-  },
-]);
+      {
+        type,
+        target,
+        reason,
+        evidence1: evidence[0],
+        evidence2: evidence[1],
+        evidence3: evidence[2],
+        duration: type === 'Ban' ? duration : '',
+        created_by: req.session?.user?.username || 'Unknown',
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
     if (error) throw error;
     res.json({ success: true });
@@ -97,10 +101,13 @@ app.post('/api/submit-action', async (req, res) => {
   }
 });
 
-
 // ---------------- GET AUDIT LOGS ----------------
 app.get('/api/logs', async (req, res) => {
-  const { data, error } = await supabase.from('Logs').select('*').order('timestamp', { ascending: false });
+  const { data, error } = await supabase
+    .from('Logs')
+    .select('*')
+    .order('timestamp', { ascending: false });
+
   if (error) return res.status(500).send('Failed to fetch logs');
   res.json(data);
 });
@@ -110,20 +117,6 @@ app.post('/api/delete-log', async (req, res) => {
   const { id } = req.body;
   const { error } = await supabase.from('Logs').delete().eq('id', id);
   if (error) return res.status(500).send('Failed to delete log');
-  res.sendStatus(200);
-});
-
-// ---------------- SUBMIT BAN REQUEST ----------------
-app.post('/api/submit-action', async (req, res) => {
-  const { target, reason, action, duration, evidence } = req.body;
-
-  console.log('🔍 Incoming action:', req.body);
-
-  if (!username || !reason || !action || evidence.length !== 3) {
-    return res.status(400).send('Missing required fields');
-  }
-
-  if (error) return res.status(500).send('Failed to submit request');
   res.sendStatus(200);
 });
 
@@ -147,9 +140,7 @@ app.get('/api/my-ban-requests', async (req, res) => {
   }
 });
 
-
-
-// ---------------- GET ALL BAN REQUESTS (review) ----------------
+// ---------------- GET ALL BAN REQUESTS (REVIEW) ----------------
 app.get('/api/ban-requests', async (req, res) => {
   try {
     if (!req.session.user || req.session.user.level < 3) {
@@ -162,9 +153,14 @@ app.get('/api/ban-requests', async (req, res) => {
       .order('timestamp', { ascending: false });
 
     if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('❌ Failed to fetch ban requests:', err.message);
+    res.status(500).send('Failed to load ban requests');
+  }
+});
 
-
-// ---------------- UPDATE BAN REQUEST ----------------
+// ---------------- APPROVE BAN REQUEST ----------------
 app.post('/api/ban-request/approve', async (req, res) => {
   try {
     if (!req.session.user || req.session.user.level < 3) {
@@ -181,7 +177,6 @@ app.post('/api/ban-request/approve', async (req, res) => {
 
     if (!request) return res.status(404).send('Request not found');
 
-    // insert to Logs
     const insertRes = await supabase.from('Logs').insert([
       {
         type: 'Ban',
@@ -198,7 +193,6 @@ app.post('/api/ban-request/approve', async (req, res) => {
 
     if (insertRes.error) throw insertRes.error;
 
-    // delete the request or mark as approved
     await supabase
       .from('BanRequests')
       .update({ status: 'Approved' })
@@ -211,7 +205,7 @@ app.post('/api/ban-request/approve', async (req, res) => {
   }
 });
 
-//DENY BAN REQ
+// ---------------- DENY BAN REQUEST ----------------
 app.post('/api/ban-request/deny', async (req, res) => {
   try {
     if (!req.session.user || req.session.user.level < 3) {
@@ -234,15 +228,10 @@ app.post('/api/ban-request/deny', async (req, res) => {
 });
 
 // ---------------- SERVE LOGIN PAGE ----------------
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`✅ Server running at http://localhost:${port}`);
 });
