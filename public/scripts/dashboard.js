@@ -29,21 +29,30 @@ async function getUser() {
 function adjustUI() {
   const level = currentUser.level;
 
+  // Restrict Kick/Ban buttons based on permission
   if (level < 2) {
     document.getElementById('kick-btn').disabled = true;
   }
-if (level < 3) {
-  document.getElementById('ban-btn').disabled = true;
-  reviewContainer.style.display = 'none';
-  document.getElementById('my-ban-requests-section').classList.remove('hidden');
-  loadMyRequests();  // ✅
-} else {
-  banRequestForm.style.display = 'none';
-  myRequestsContainer.style.display = 'none';
-  document.getElementById('review-ban-requests-section').classList.remove('hidden');
-  loadReviewRequests();  // ✅
+  if (level < 3) {
+    document.getElementById('ban-btn').disabled = true;
+  }
+
+  // Show/hide ban request sections
+  if (level < 3) {
+    // Levels 1–2 can submit ban requests and view their own
+    banRequestForm.classList.remove('hidden');
+    myRequestsContainer.classList.remove('hidden');
+    reviewContainer.classList.add('hidden');
+    loadMyRequests();
+  } else {
+    // Level 3 sees review panel only
+    banRequestForm.classList.add('hidden');
+    myRequestsContainer.classList.add('hidden');
+    reviewContainer.classList.remove('hidden');
+    loadReviewRequests();
   }
 }
+
 const banRequestFormElement = document.getElementById('ban-request-form-element');
 const banEvidenceInput = document.getElementById('ban-evidence-input');
 const banAddEvidenceBtn = document.getElementById('ban-add-evidence');
