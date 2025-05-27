@@ -1,194 +1,170 @@
-// server.js
-import express from "express";
-import session from "express-session";
-import bodyParser from "body-parser";
-import dotenv from "dotenv";
-import cors from "cors";
-import { GoogleSpreadsheet } from "google-spreadsheet";
-import { JWT } from "google-auth-library";
+// server.js using Supabase
+import express from 'express';
+import session from 'express-session';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 10000;
 
 app.use(cors());
-app.use(express.static("public"));
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.static('public'));
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "secret-key",
+    secret: process.env.SESSION_SECRET || 'secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 15 * 60 * 1000 }, // 15 minutes
   })
 );
 
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]; // full access
-const doc = new GoogleSpreadsheet(process.env.SHEET_ID);
-const serviceAccountAuth = new JWT({
-  email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-  scopes: SCOPES,
-});
-
-async function accessSheet() {
-  await doc.useServiceAccountAuth(serviceAccountAuth);
-  await doc.loadInfo();
-  return doc;
-}
-
-// Utility function to format timestamp
-function formatTimestamp(date) {
-  return date.toLocaleString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // ---------------- LOGIN ----------------
-app.post("/api/login", async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["Users"];
-  await sheet.loadCells();
-  const rows = await sheet.getRows();
-  const user = rows.find(
-    (row) => row.Username === username && row.Password === password
-  );
-  if (user) {
-    req.session.user = { username, level: parseInt(user.PermissionLevel) };
-    res.json({ success: true, level: user.PermissionLevel });
-  } else {
-    res.json({ success: false });
-  }
+  const { data, error } = await supabase
+    .from('Users')
+    .select('*')
+    .eq('username', username)
+    .eq('password', password)
+    .single();
+
+  if (error || !data) return res.status(401).send('Invalid credentials');
+
+  req.session.user = {
+    username: data.username,
+    level: data.permission,
+  };
+
+  res.json({ success: true });
 });
 
 // ---------------- LOGOUT ----------------
-app.post("/api/logout", (req, res) => {
+app.get('/api/logout', (req, res) => {
   req.session.destroy();
-  res.json({ success: true });
+  res.redirect('/');
 });
 
-// ---------------- SUBMIT LOG ----------------
-app.post("/api/submit", async (req, res) => {
+// ---------------- GET USER ----------------
+app.get('/api/user', (req, res) => {
   const user = req.session.user;
-  if (!user) return res.status(401).send("Unauthorized");
+  if (!user) return res.status(401).send('Unauthorized');
+  res.json(user);
+});
 
-  const { type, reason, target, evidence, duration } = req.body;
-  if (!reason || !target || evidence.length !== 3) {
-    return res.status(400).send("Missing required fields");
-  }
+// ---------------- SUBMIT ACTION (warn/kick/ban) ----------------
+app.post('/api/submit-action', async (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(401).send('Unauthorized');
 
-  const timestamp = formatTimestamp(new Date());
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["Logs"];
-  await sheet.addRow({
-    ActionType: type,
-    Reason: reason,
-    Target: target,
-    Evidence1: evidence[0],
-    Evidence2: evidence[1],
-    Evidence3: evidence[2],
-    IssuedBy: user.username,
-    Duration: type === "Ban" ? duration : "",
-    Timestamp: timestamp,
+  const { type, target, reason, evidence, duration } = req.body;
+  const timestamp = new Date().toISOString();
+
+  const { error } = await supabase.from('Logs').insert({
+    type,
+    target,
+    reason,
+    evidence1: evidence[0],
+    evidence2: evidence[1],
+    evidence3: evidence[2],
+    duration: type === 'Ban' ? duration : null,
+    created_by: user.username,
+    timestamp,
   });
-  res.json({ success: true });
+
+  if (error) return res.status(500).send('Failed to log action');
+  res.sendStatus(200);
 });
 
-// ---------------- GET LOGS ----------------
-app.get("/api/logs", async (req, res) => {
-  const user = req.session.user;
-  if (!user) return res.status(401).send("Unauthorized");
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["Logs"];
-  const rows = await sheet.getRows();
-  const logs = rows.map((row, index) => ({ id: index + 2, ...row._rawData }));
-  res.json(logs.reverse());
+// ---------------- GET AUDIT LOGS ----------------
+app.get('/api/logs', async (req, res) => {
+  const { data, error } = await supabase.from('Logs').select('*').order('timestamp', { ascending: false });
+  if (error) return res.status(500).send('Failed to fetch logs');
+  res.json(data);
 });
 
 // ---------------- DELETE LOG ----------------
-app.post("/api/delete-log", async (req, res) => {
-  const user = req.session.user;
-  if (!user) return res.status(401).send("Unauthorized");
-  const { rowId } = req.body;
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["Logs"];
-  await sheet.loadCells();
-  await sheet.deleteRow(parseInt(rowId) - 2);
-  res.json({ success: true });
+app.post('/api/delete-log', async (req, res) => {
+  const { id } = req.body;
+  const { error } = await supabase.from('Logs').delete().eq('id', id);
+  if (error) return res.status(500).send('Failed to delete log');
+  res.sendStatus(200);
 });
 
 // ---------------- SUBMIT BAN REQUEST ----------------
-app.post("/api/submit-ban-request", async (req, res) => {
+app.post('/api/ban-request', async (req, res) => {
   const user = req.session.user;
-  if (!user || user.level >= 3) return res.status(401).send("Unauthorized");
-  const { reason, target, evidence, duration } = req.body;
-  if (!reason || !target || evidence.length !== 3) return res.status(400).send("Missing fields");
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["BanRequests"];
-  await sheet.addRow({
-    Target: target,
-    Reason: reason,
-    Evidence1: evidence[0],
-    Evidence2: evidence[1],
-    Evidence3: evidence[2],
-    Duration: duration,
-    RequestedBy: user.username,
-    Status: "Pending",
-    Timestamp: formatTimestamp(new Date()),
+  if (!user || user.level >= 3) return res.status(401).send('Unauthorized');
+  const { target, reason, duration, evidence } = req.body;
+
+  const { error } = await supabase.from('BanRequests').insert({
+    target,
+    reason,
+    duration,
+    evidence1: evidence[0],
+    evidence2: evidence[1],
+    evidence3: evidence[2],
+    requested_by: user.username,
+    status: 'Pending',
   });
-  res.json({ success: true });
+
+  if (error) return res.status(500).send('Failed to submit request');
+  res.sendStatus(200);
 });
 
-// ---------------- GET BAN REQUESTS ----------------
-app.get("/api/get-ban-requests", async (req, res) => {
+// ---------------- GET MY BAN REQUESTS ----------------
+app.get('/api/my-ban-requests', async (req, res) => {
   const user = req.session.user;
-  if (!user || user.level < 3) return res.status(401).send("Unauthorized");
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["BanRequests"];
-  const rows = await sheet.getRows();
-  res.json(rows.map((r, i) => ({ id: i + 2, ...r._rawData })).reverse());
+  if (!user || user.level >= 3) return res.status(401).send('Unauthorized');
+  const { data, error } = await supabase
+    .from('BanRequests')
+    .select('*')
+    .eq('requested_by', user.username)
+    .order('id', { ascending: false });
+  if (error) return res.status(500).send('Failed to fetch requests');
+  res.json(data);
 });
 
-// ---------------- APPROVE/DENY BAN REQUEST ----------------
-app.post("/api/update-ban-request", async (req, res) => {
+// ---------------- GET ALL BAN REQUESTS (review) ----------------
+app.get('/api/ban-requests', async (req, res) => {
   const user = req.session.user;
-  if (!user || user.level < 3) return res.status(401).send("Unauthorized");
-  const { rowId, action } = req.body;
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["BanRequests"];
-  const rows = await sheet.getRows();
-  const row = rows[parseInt(rowId) - 2];
-  row.Status = action;
-  await row.save();
-  res.json({ success: true });
+  if (!user || user.level < 3) return res.status(401).send('Unauthorized');
+  const { data, error } = await supabase
+    .from('BanRequests')
+    .select('*')
+    .order('id', { ascending: false });
+  if (error) return res.status(500).send('Failed to fetch requests');
+  res.json(data);
 });
 
-// ---------------- MY BAN REQUESTS ----------------
-app.get("/api/my-ban-requests", async (req, res) => {
+// ---------------- UPDATE BAN REQUEST ----------------
+app.post('/api/update-ban-request', async (req, res) => {
   const user = req.session.user;
-  if (!user || user.level >= 3) return res.status(401).send("Unauthorized");
-  const doc = await accessSheet();
-  const sheet = doc.sheetsByTitle["BanRequests"];
-  const rows = await sheet.getRows();
-  const mine = rows.filter((r) => r.RequestedBy === user.username);
-  res.json(mine.map((r, i) => ({ id: i + 2, ...r._rawData })).reverse());
-});
-import path from "path";
-import { fileURLToPath } from "url";
+  if (!user || user.level < 3) return res.status(401).send('Unauthorized');
+  const { id, status } = req.body;
 
+  const { error } = await supabase
+    .from('BanRequests')
+    .update({ status, reviewed_by: user.username })
+    .eq('id', id);
+
+  if (error) return res.status(500).send('Failed to update request');
+  res.sendStatus(200);
+});
+
+// ---------------- SERVE LOGIN PAGE ----------------
+import path from 'path';
+import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve login page at root
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.listen(port, () => {
