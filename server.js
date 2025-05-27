@@ -302,30 +302,43 @@ app.post('/api/logs/delete', async (req, res) => {
 });
 
 // --- UPDATE A LOG ENTRY ---
-app.post('/api/logs/edit', async (req, res) => {
-  const { id, type, reason, duration } = req.body;
-  const sessionUser = req.session?.user;
+app.post('/api/logs/update', async (req, res) => {
+  const user = req.session?.user;
+  if (!user) return res.status(403).send('Not logged in');
 
-  if (!sessionUser) return res.status(401).send('Unauthorized');
+  const { id, type, reason, duration, evidence1, evidence2, evidence3 } = req.body;
 
-  const permission = sessionUser.level;
-  const allowedTypes = permission === 3 ? ['Ban'] : permission === 2 ? ['Kick'] : ['Warn'];
+  // Permission checks
+  const allowed = (
+    (user.level === 3) ||
+    (user.level === 2 && type !== 'Ban') ||
+    (user.level === 1 && type === 'Warn')
+  );
 
-  if (!allowedTypes.includes(type)) return res.status(403).send('Insufficient permissions');
-
-  try {
-    const { error } = await supabase
-      .from('Logs')
-      .update({ type, reason, duration })
-      .eq('id', id);
-
-    if (error) throw error;
-    res.sendStatus(200);
-  } catch (err) {
-    console.error('❌ Failed to update log:', err.message);
-    res.status(500).send('Edit failed');
+  if (!allowed) {
+    return res.status(403).send('Insufficient permission');
   }
+
+  const { error } = await supabase
+    .from('Logs')
+    .update({
+      type,
+      reason,
+      duration: type === 'Ban' ? duration : '',
+      evidence1,
+      evidence2,
+      evidence3
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('❌ Update failed:', error.message);
+    return res.status(500).send('Update failed');
+  }
+
+  res.sendStatus(200);
 });
+
 
 // ---------------- SERVE LOGIN PAGE ----------------
 app.get('/', (req, res) => {
