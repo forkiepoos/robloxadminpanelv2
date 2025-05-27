@@ -270,25 +270,20 @@ app.post('/api/ban-request/deny', async (req, res) => {
     res.status(500).send('Deny failed');
   }
 });
-// --- GET ALL LOGS FOR A SPECIFIC USER ---
+// Search logs by target username
 app.get('/api/logs/user/:username', async (req, res) => {
-  const { username } = req.params;
-  const sessionUser = req.session?.user;
-
-  if (!sessionUser) return res.status(401).send('Unauthorized');
-
+  const username = req.params.username;
   try {
     const { data, error } = await supabase
       .from('Logs')
       .select('*')
-      .eq('target', username)
-      .order('timestamp', { ascending: false });
+      .ilike('target', `%${username}%`)  // case-insensitive search
 
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    console.error('❌ Failed to fetch logs for user:', err.message);
-    res.status(500).send('Failed to load logs');
+    console.error('Failed to search logs:', err.message);
+    res.status(500).send('Error searching logs');
   }
 });
 
