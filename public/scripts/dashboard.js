@@ -141,7 +141,6 @@ actionForm.addEventListener('submit', async (e) => {
 });
 
 async function loadLogs() {
-async function loadLogs() {
   const res = await fetch('/api/logs');
   if (!res.ok) {
     const errorText = await res.text(); // not JSON!
