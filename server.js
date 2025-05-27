@@ -70,7 +70,7 @@ app.post('/api/submit-action', async (req, res) => {
 
   console.log('▶️ SUBMIT PAYLOAD:', req.body);
 
-  if (!username || !reason || !action || !evidence || evidence.length !== 3) {
+  if (!target || !reason || !action || !evidence || evidence.length !== 3) {
     return res.status(400).send('Missing required fields');
   }
 
@@ -115,7 +115,7 @@ app.post('/api/delete-log', async (req, res) => {
 
 // ---------------- SUBMIT BAN REQUEST ----------------
 app.post('/api/submit-action', async (req, res) => {
-  const { username, reason, action, duration, evidence } = req.body;
+  const { target, reason, action, duration, evidence } = req.body;
 
   console.log('🔍 Incoming action:', req.body);
 
