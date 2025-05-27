@@ -270,6 +270,70 @@ app.post('/api/ban-request/deny', async (req, res) => {
     res.status(500).send('Deny failed');
   }
 });
+// --- GET ALL LOGS FOR A SPECIFIC USER ---
+app.get('/api/logs/user/:username', async (req, res) => {
+  const { username } = req.params;
+  const sessionUser = req.session?.user;
+
+  if (!sessionUser) return res.status(401).send('Unauthorized');
+
+  try {
+    const { data, error } = await supabase
+      .from('Logs')
+      .select('*')
+      .eq('target', username)
+      .order('timestamp', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('❌ Failed to fetch logs for user:', err.message);
+    res.status(500).send('Failed to load logs');
+  }
+});
+
+// --- DELETE LOG BY ID ---
+app.post('/api/logs/delete', async (req, res) => {
+  const { id } = req.body;
+  const sessionUser = req.session?.user;
+
+  if (!sessionUser) return res.status(401).send('Unauthorized');
+
+  try {
+    const { error } = await supabase.from('Logs').delete().eq('id', id);
+    if (error) throw error;
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('❌ Failed to delete log:', err.message);
+    res.status(500).send('Delete failed');
+  }
+});
+
+// --- UPDATE A LOG ENTRY ---
+app.post('/api/logs/edit', async (req, res) => {
+  const { id, type, reason, duration } = req.body;
+  const sessionUser = req.session?.user;
+
+  if (!sessionUser) return res.status(401).send('Unauthorized');
+
+  const permission = sessionUser.level;
+  const allowedTypes = permission === 3 ? ['Ban'] : permission === 2 ? ['Kick'] : ['Warn'];
+
+  if (!allowedTypes.includes(type)) return res.status(403).send('Insufficient permissions');
+
+  try {
+    const { error } = await supabase
+      .from('Logs')
+      .update({ type, reason, duration })
+      .eq('id', id);
+
+    if (error) throw error;
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('❌ Failed to update log:', err.message);
+    res.status(500).send('Edit failed');
+  }
+});
 
 // ---------------- SERVE LOGIN PAGE ----------------
 app.get('/', (req, res) => {
