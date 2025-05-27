@@ -69,6 +69,7 @@ app.get('/api/user', (req, res) => {
 });
 
 // ---------------- SUBMIT ACTION (warn/kick/ban) ----------------
+// --- SUBMIT ACTION (warn/kick/ban) ---
 app.post('/api/submit-action', async (req, res) => {
   const { target, reason, type, duration, evidence } = req.body;
 
@@ -90,7 +91,8 @@ app.post('/api/submit-action', async (req, res) => {
         duration: type === 'Ban' ? duration : '',
         created_by: req.session?.user?.username || 'Unknown',
         timestamp: new Date().toISOString(),
-      },
+        handled: false  // 🔥 ensures Roblox picks this up
+      }
     ]);
 
     if (error) throw error;
@@ -100,6 +102,7 @@ app.post('/api/submit-action', async (req, res) => {
     res.status(500).json({ error: 'Insert failed' });
   }
 });
+
 
 // ---------------- SUBMIT BAN REQUEST (Levels 1–2) ----------------
 app.post('/api/submit-ban-request', async (req, res) => {
