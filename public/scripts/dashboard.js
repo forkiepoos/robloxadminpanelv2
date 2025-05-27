@@ -271,6 +271,7 @@ async function loadMyRequests() {
         <th class="px-4 py-2 text-left">Duration</th>
         <th class="px-4 py-2 text-left">Evidence</th>
         <th class="px-4 py-2 text-left">Status</th>
+        <th class="px-4 py-2 text-left">Reviewed By</th>
       </tr>
     </thead>
     <tbody class="bg-white divide-y divide-gray-200"></tbody>
@@ -298,6 +299,7 @@ async function loadMyRequests() {
           ${req.status}
         </span>
       </td>
+      <td class="px-4 py-2 text-gray-600">${req.reviewed_by || '—'}</td>
     `;
     tbody.appendChild(row);
   });
