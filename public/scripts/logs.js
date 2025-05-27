@@ -12,7 +12,7 @@ async function searchLogs() {
   const username = document.getElementById('search-user').value.trim();
   if (!username) return alert('Enter a username.');
 
-  const res = await fetch(`/api/logs/user/${username}`);
+  const res = await fetch(`/api/search-logs?target=${encodeURIComponent(username)}`);
   const logs = await res.json();
 
   const table = document.getElementById('user-logs-table');
