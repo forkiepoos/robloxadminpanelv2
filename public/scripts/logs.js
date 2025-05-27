@@ -1,31 +1,25 @@
-// logs.js (in public/scripts)
+// public/scripts/log.js
 
 let currentUser = null;
-const logTable = document.getElementById('log-table-body');
-const searchInput = document.getElementById('search-user');
 
 async function getUser() {
   const res = await fetch('/api/user');
   if (!res.ok) return (window.location.href = '/');
-  const data = await res.json();
-  currentUser = data;
+  currentUser = await res.json();
 }
 
 async function searchLogs() {
-  const username = searchInput.value.trim();
-  if (!username) return alert('Enter a username');
+  const username = document.getElementById('search-user').value.trim();
+  if (!username) return alert('Enter a username.');
 
-  const res = await fetch(`/api/logs/user/${encodeURIComponent(username)}`);
-  if (!res.ok) return alert('Failed to fetch logs');
-
+  const res = await fetch(`/api/logs/user/${username}`);
   const logs = await res.json();
-  renderLogs(logs);
-}
 
-function renderLogs(logs) {
-  logTable.innerHTML = '';
-  if (logs.length === 0) {
-    logTable.innerHTML = '<tr><td colspan="6" class="text-center py-4">No logs found</td></tr>';
+  const table = document.getElementById('user-logs-table');
+  table.innerHTML = '';
+
+  if (!logs.length) {
+    table.innerHTML = '<tr><td colspan="6" class="text-center py-4">No logs found for that user.</td></tr>';
     return;
   }
 
@@ -33,42 +27,30 @@ function renderLogs(logs) {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td class="border px-3 py-2">${log.type}</td>
-      <td class="border px-3 py-2">${log.target}</td>
       <td class="border px-3 py-2">${log.reason}</td>
       <td class="border px-3 py-2">${log.duration || '-'}</td>
-      <td class="border px-3 py-2">
-        <a href="${log.evidence1}" class="text-blue-600" target="_blank">1</a> |
-        <a href="${log.evidence2}" class="text-blue-600" target="_blank">2</a> |
-        <a href="${log.evidence3}" class="text-blue-600" target="_blank">3</a>
-      </td>
-      <td class="border px-3 py-2">
-        ${renderActionButtons(log)}
+      <td class="border px-3 py-2">${log.timestamp}</td>
+      <td class="border px-3 py-2">${log.created_by}</td>
+      <td class="border px-3 py-2 flex gap-2">
+        <button onclick="deleteLog(${log.id})" class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+        ${canEdit(log.type) ? `<button onclick='editLog(${JSON.stringify(log)})' class="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>` : ''}
       </td>
     `;
-    logTable.appendChild(row);
+    table.appendChild(row);
   });
 }
 
-function renderActionButtons(log) {
-  let buttons = '';
-  if (currentUser.level >= 1 && log.type === 'Warn') {
-    buttons += `<button class="text-red-600" onclick="deleteLog(${log.id})">🗑️</button>`;
-    buttons += `<button class="ml-2 text-blue-600" onclick="editLog(${log.id}, 'Warn')">✏️</button>`;
-  }
-  if (currentUser.level >= 2 && log.type === 'Kick') {
-    buttons += `<button class="text-red-600" onclick="deleteLog(${log.id})">🗑️</button>`;
-    buttons += `<button class="ml-2 text-blue-600" onclick="editLog(${log.id}, 'Kick')">✏️</button>`;
-  }
-  if (currentUser.level >= 3 && log.type === 'Ban') {
-    buttons += `<button class="text-red-600" onclick="deleteLog(${log.id})">🗑️</button>`;
-    buttons += `<button class="ml-2 text-blue-600" onclick="editLog(${log.id}, 'Ban')">✏️</button>`;
-  }
-  return buttons;
+function canEdit(type) {
+  if (!currentUser) return false;
+  if (type === 'Ban') return currentUser.level === 3;
+  if (type === 'Kick') return currentUser.level >= 2;
+  if (type === 'Warn') return currentUser.level >= 1;
+  return false;
 }
 
 async function deleteLog(id) {
   if (!confirm('Delete this log?')) return;
-  const res = await fetch('/api/delete-log', {
+  const res = await fetch('/api/logs/delete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id }),
@@ -77,18 +59,26 @@ async function deleteLog(id) {
   else alert('Failed to delete');
 }
 
-function editLog(id, currentType) {
-  const newType = prompt(`Change punishment type for log ${id} (Warn, Kick, Ban):`, currentType);
-  if (!newType || !['Warn', 'Kick', 'Ban'].includes(newType)) return;
+function editLog(log) {
+  const newType = prompt('New type (Warn/Kick/Ban):', log.type);
+  const newReason = prompt('New reason:', log.reason);
+  const newDuration = newType === 'Ban' ? prompt('New duration:', log.duration) : '';
 
-  fetch('/api/edit-log', {
+  if (!newType || !newReason || (newType === 'Ban' && !newDuration)) return alert('Invalid input');
+
+  fetch('/api/logs/edit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, newType })
-  })
-    .then(res => res.ok ? searchLogs() : alert('Failed to update log'));
+    body: JSON.stringify({
+      id: log.id,
+      type: newType,
+      reason: newReason,
+      duration: newDuration
+    })
+  }).then(res => {
+    if (res.ok) searchLogs();
+    else res.text().then(alert);
+  });
 }
-
-document.getElementById('search-btn').addEventListener('click', searchLogs);
 
 getUser();
