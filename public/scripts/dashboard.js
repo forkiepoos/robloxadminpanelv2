@@ -26,17 +26,24 @@ async function getUser() {
 }
 
 function adjustUI() {
-  if (currentUser.level < 2) {
+  const level = currentUser.level;
+
+  if (level < 2) {
     document.getElementById('kick-btn').disabled = true;
   }
-  if (currentUser.level < 3) {
+  if (level < 3) {
     document.getElementById('ban-btn').disabled = true;
     reviewContainer.style.display = 'none';
+    document.getElementById('my-ban-requests-section').classList.remove('hidden');
+    loadMyRequests();
   } else {
     banRequestForm.style.display = 'none';
     myRequestsContainer.style.display = 'none';
+    document.getElementById('review-ban-requests-section').classList.remove('hidden');
+    loadReviewRequests();
   }
 }
+
 
 addEvidenceBtn.addEventListener('click', () => {
   const link = evidenceInput.value.trim();
@@ -118,21 +125,6 @@ async function deleteLog(id) {
   if (res.ok) loadLogs();
   else alert('Failed to delete');
 }
-
-const userLevel = session.level;
-
-// Show review panel if permission 3
-if (userLevel === 3) {
-  document.getElementById('review-ban-requests-section').classList.remove('hidden');
-  loadReviewRequests();
-}
-
-// Show your requests panel if permission < 3
-if (userLevel < 3) {
-  document.getElementById('my-ban-requests-section').classList.remove('hidden');
-  loadMyRequests();
-}
-
 
 async function loadReviewRequests() {
   const res = await fetch('/api/ban-requests');
