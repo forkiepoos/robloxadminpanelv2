@@ -26,20 +26,19 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 
 // ---------------- LOGIN ----------------
 app.post('/api/login', async (req, res) => {
- const username = req.body.username.trim();
+const username = req.body.username.trim();
 const password = req.body.password.trim();
-  console.log(`Checking username: '${username}', password: '${password}'`);
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('username', username)
-    .eq('password', password)
-    .eq('username', username.trim().toLowerCase())
-    .maybeSingle();
+const { data, error } = await supabase
+  .from('users')
+  .select('*')
+  .eq('username', username)
+  .eq('password', password)
+  .maybeSingle();
 
-  console.log('Supabase result:', data);
-  console.log('Supabase error:', error);
+console.log('Checking username:', `'${username}'`, 'password:', `'${password}'`);
+console.log('Supabase result:', data);
+console.log('Supabase error:', error);
 
   if (error || !data) return res.status(401).send('Invalid credentials');
 
