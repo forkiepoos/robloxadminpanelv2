@@ -10,6 +10,15 @@ async function getUser() {
 
 document.getElementById('search-btn').addEventListener('click', searchLogs);
 
+function canEdit(type) {
+  if (!currentUser) return false;
+  if (type === 'Ban') return currentUser.level === 3;
+  if (type === 'Kick') return currentUser.level >= 2;
+  if (type === 'Warn') return currentUser.level >= 1;
+  return false;
+}
+
+
 async function searchLogs() {
   const username = document.getElementById('search-username').value.trim();
   if (!username) return alert('Enter a username.');
