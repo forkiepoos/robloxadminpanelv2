@@ -272,20 +272,17 @@ app.post('/api/ban-request/deny', async (req, res) => {
 });
 // Search logs by target username
 app.get('/api/logs/user/:username', async (req, res) => {
-  const username = req.params.username;
-  try {
-    const { data, error } = await supabase
-      .from('Logs')
-      .select('*')
-      .ilike('target', `%${username}%`)  // case-insensitive search
+  const { username } = req.params;
+  const { data, error } = await supabase
+    .from('Logs')
+    .select('*')
+    .eq('target', username)
+    .order('timestamp', { ascending: false });
 
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('Failed to search logs:', err.message);
-    res.status(500).send('Error searching logs');
-  }
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
+
 
 // --- DELETE LOG BY ID ---
 app.post('/api/logs/delete', async (req, res) => {
