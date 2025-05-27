@@ -122,23 +122,23 @@ app.post('/api/delete-log', async (req, res) => {
 
 // ---------------- GET MY BAN REQUESTS ----------------
 app.get('/api/my-ban-requests', async (req, res) => {
-  try {
-    const username = req.session?.user?.username;
-    if (!username) return res.status(401).send('Not logged in');
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).send('Unauthorized');
 
-    const { data, error } = await supabase
-      .from('BanRequests')
-      .select('*')
-      .eq('created_by', username)
-      .order('timestamp', { ascending: false });
+  const { data, error } = await supabase
+    .from('BanRequests')
+    .select('*')
+    .eq('created_by', username)
+    .order('timestamp', { ascending: false });
 
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('❌ Failed to fetch user ban requests:', err.message);
-    res.status(500).send('Failed to load your requests');
+  if (error) {
+    console.error('Failed to fetch my ban requests:', error);
+    return res.status(500).send('Database error');
   }
+
+  res.json(data);
 });
+
 
 // ---------------- GET ALL BAN REQUESTS (REVIEW) ----------------
 app.get('/api/ban-requests', async (req, res) => {
