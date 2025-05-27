@@ -82,8 +82,13 @@ actionForm.addEventListener('submit', async (e) => {
 });
 
 async function loadLogs() {
-  const res = await fetch('/api/logs');
-  const logs = await res.json();
+const res = await fetch('/api/logs');
+if (!res.ok) {
+  const errorText = await res.text(); // not JSON!
+  throw new Error(errorText);
+}
+const logs = await res.json();
+
   logContainer.innerHTML = '';
   logs.forEach((log) => {
     const div = document.createElement('div');
