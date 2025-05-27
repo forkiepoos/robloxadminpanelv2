@@ -15,7 +15,7 @@ async function searchLogs() {
   const res = await fetch(`/api/logs/user/${username}`);
   const logs = await res.json();
 
-  console.log('🔍 Search result:', logs);  // ✅ DEBUG
+  console.log('🔍 Search result:', logs); // Debugging
 
   const table = document.getElementById('user-logs-table');
   table.innerHTML = '';
@@ -25,22 +25,19 @@ async function searchLogs() {
     return;
   }
 
-  // (render logs into table...)
-}
-
-
   logs.forEach(log => {
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td class="border px-3 py-2">${log.type}</td>
-      <td class="border px-3 py-2">${log.reason}</td>
-      <td class="border px-3 py-2">${log.duration || '-'}</td>
-      <td class="border px-3 py-2">${log.timestamp}</td>
-      <td class="border px-3 py-2">${log.created_by}</td>
-      <td class="border px-3 py-2 flex gap-2">
-        <button onclick="deleteLog(${log.id})" class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
-        ${canEdit(log.type) ? `<button onclick='editLog(${JSON.stringify(log)})' class="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>` : ''}
+      <td class="border px-2 py-1">${log.type}</td>
+      <td class="border px-2 py-1">${log.target}</td>
+      <td class="border px-2 py-1">${log.reason}</td>
+      <td class="border px-2 py-1">${log.duration || '-'}</td>
+      <td class="border px-2 py-1 text-blue-600">
+        <a href="${log.evidence1}" target="_blank">1</a> |
+        <a href="${log.evidence2}" target="_blank">2</a> |
+        <a href="${log.evidence3}" target="_blank">3</a>
       </td>
+      <td class="border px-2 py-1">${log.created_by}</td>
     `;
     table.appendChild(row);
   });
