@@ -70,7 +70,7 @@ app.post('/api/submit-action', async (req, res) => {
 
   console.log('▶️ SUBMIT PAYLOAD:', req.body);
 
-  if (!target || !reason || !action || !evidence || evidence.length !== 3) {
+  if (!target || !reason || !type || !evidence || evidence.length !== 3) {
     return res.status(400).send('Missing required fields');
   }
 
