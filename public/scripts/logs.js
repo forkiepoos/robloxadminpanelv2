@@ -12,8 +12,10 @@ async function searchLogs() {
   const username = document.getElementById('search-user').value.trim();
   if (!username) return alert('Enter a username.');
 
-  const res = await fetch(`/api/search-logs?target=${encodeURIComponent(username)}`);
+  const res = await fetch(`/api/logs/user/${username}`);
   const logs = await res.json();
+
+  console.log('🔍 Search result:', logs);  // ✅ DEBUG
 
   const table = document.getElementById('user-logs-table');
   table.innerHTML = '';
@@ -22,6 +24,10 @@ async function searchLogs() {
     table.innerHTML = '<tr><td colspan="6" class="text-center py-4">No logs found for that user.</td></tr>';
     return;
   }
+
+  // (render logs into table...)
+}
+
 
   logs.forEach(log => {
     const row = document.createElement('tr');
