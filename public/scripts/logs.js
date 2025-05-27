@@ -80,25 +80,44 @@ function editLog(log) {
     return alert('❌ Insufficient permission to edit this type of log.');
   }
 
-  const newType = prompt('New type (Warn/Kick/Ban):', log.type);
-  const newReason = prompt('New reason:', log.reason);
-  const newDuration = newType === 'Ban' ? prompt('New duration:', log.duration || '') : '';
+  document.getElementById('edit-log-id').value = log.id;
+  document.getElementById('edit-log-type').value = log.type;
+  document.getElementById('edit-log-reason').value = log.reason;
+  document.getElementById('edit-log-duration').value = log.duration || '';
+  document.getElementById('edit-log-evidence1').value = log.evidence1;
+  document.getElementById('edit-log-evidence2').value = log.evidence2;
+  document.getElementById('edit-log-evidence3').value = log.evidence3;
 
-  if (!newType || !newReason || (newType === 'Ban' && !newDuration)) return alert('Invalid input');
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
 
-  fetch('/api/logs/edit', {
+document.getElementById('edit-log-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById('edit-log-id').value;
+  const type = document.getElementById('edit-log-type').value;
+  const reason = document.getElementById('edit-log-reason').value;
+  const duration = type === 'Ban' ? document.getElementById('edit-log-duration').value : '';
+  const evidence1 = document.getElementById('edit-log-evidence1').value;
+  const evidence2 = document.getElementById('edit-log-evidence2').value;
+  const evidence3 = document.getElementById('edit-log-evidence3').value;
+
+  const res = await fetch('/api/logs/edit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: log.id,
-      type: newType,
-      reason: newReason,
-      duration: newType === 'Ban' ? newDuration : ''
-    })
-  }).then(res => {
-    if (res.ok) searchLogs();
-    else res.text().then(alert);
+    body: JSON.stringify({ id, type, reason, duration, evidence1, evidence2, evidence3 })
   });
-}
+
+  if (res.ok) {
+    document.getElementById('edit-modal').classList.add('hidden');
+    searchLogs();
+  } else {
+    alert('Failed to update log.');
+  }
+});
+
+document.getElementById('cancel-edit').addEventListener('click', () => {
+  document.getElementById('edit-modal').classList.add('hidden');
+});
 
 getUser();
