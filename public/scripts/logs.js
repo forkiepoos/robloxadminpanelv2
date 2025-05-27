@@ -8,6 +8,13 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
+ 
+  <div class="mb-4">
+  <a href="/dashboard.html" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded">
+    ← Back to Dashboard
+  </a>
+</div>
+  
   <div class="max-w-6xl mx-auto">
     <h1 class="text-3xl font-bold mb-6">Search User Logs</h1>
 
