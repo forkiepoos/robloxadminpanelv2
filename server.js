@@ -66,7 +66,7 @@ app.get('/api/user', (req, res) => {
 
 // ---------------- SUBMIT ACTION (warn/kick/ban) ----------------
 app.post('/api/submit-action', async (req, res) => {
-  const { username, reason, action, duration, evidence } = req.body;
+  const { target, reason, type, duration, evidence } = req.body;
 
   console.log('▶️ SUBMIT PAYLOAD:', req.body);
 
@@ -76,18 +76,18 @@ app.post('/api/submit-action', async (req, res) => {
 
   try {
     const { error } = await supabase.from('Logs').insert([
-      {
-        type: action,
-        target: username,
-        reason,
-        evidence1: evidence[0],
-        evidence2: evidence[1],
-        evidence3: evidence[2],
-        duration: action === 'Ban' ? duration : '',
-        created_by: req.session?.user?.username || 'Unknown',
-        timestamp: new Date().toISOString(),
-      },
-    ]);
+  {
+    type,
+    target,
+    reason,
+    evidence1: evidence[0],
+    evidence2: evidence[1],
+    evidence3: evidence[2],
+    duration: type === 'Ban' ? duration : '',
+    created_by: req.session?.user?.username || 'Unknown',
+    timestamp: new Date().toISOString(),
+  },
+]);
 
     if (error) throw error;
     res.json({ success: true });
