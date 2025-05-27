@@ -199,21 +199,23 @@ async function deleteLog(id) {
 async function loadReviewRequests() {
   const res = await fetch('/api/ban-requests');
   const data = await res.json();
+  const container = document.getElementById('review-requests-section');
   const table = document.getElementById('review-requests-table');
 
-  // Clear and add styled header
   table.innerHTML = `
-    <thead class="bg-gray-200">
+    <thead class="bg-gray-100 text-sm text-gray-700 uppercase">
       <tr>
-        <th class="px-4 py-2 text-left">Target</th>
-        <th class="px-4 py-2 text-left">Reason</th>
-        <th class="px-4 py-2 text-left">Duration</th>
-        <th class="px-4 py-2 text-left">Evidence</th>
-        <th class="px-4 py-2 text-left">Status</th>
-        <th class="px-4 py-2 text-left">Actions</th>
+        <th class="px-4 py-3 text-left">User</th>
+        <th class="px-4 py-3 text-left">Target</th>
+        <th class="px-4 py-3 text-left">Reason</th>
+        <th class="px-4 py-3 text-left">Evidence</th>
+        <th class="px-4 py-3 text-left">Duration</th>
+        <th class="px-4 py-3 text-left">Timestamp</th>
+        <th class="px-4 py-3 text-left">Status</th>
+        <th class="px-4 py-3 text-left">Actions</th>
       </tr>
     </thead>
-    <tbody class="bg-white divide-y divide-gray-200"></tbody>
+    <tbody class="bg-white divide-y divide-gray-200 text-sm"></tbody>
   `;
 
   const tbody = table.querySelector('tbody');
@@ -222,33 +224,42 @@ async function loadReviewRequests() {
     const row = document.createElement('tr');
     row.classList.add('hover:bg-gray-50');
 
+    const timestamp = new Date(req.timestamp).toLocaleString();
+
     row.innerHTML = `
-      <td class="px-4 py-2 font-medium text-gray-800">${req.target}</td>
-      <td class="px-4 py-2 text-gray-700">${req.reason}</td>
-      <td class="px-4 py-2 text-gray-700">${req.duration}</td>
-      <td class="px-4 py-2 text-blue-600">
-        <a href="${req.evidence1}" target="_blank">1</a> |
-        <a href="${req.evidence2}" target="_blank">2</a> |
-        <a href="${req.evidence3}" target="_blank">3</a>
+      <td class="px-4 py-3 font-semibold text-gray-800">${req.created_by || 'Unknown'}</td>
+      <td class="px-4 py-3">${req.target}</td>
+      <td class="px-4 py-3 max-w-xs">
+        <button class="text-blue-600 underline hover:text-blue-800" onclick="alert(\`${req.reason.replace(/`/g, "'")}\`)">View</button>
       </td>
-      <td class="px-4 py-2">
-        <span class="inline-block px-2 py-1 text-sm rounded 
-          ${req.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+      <td class="px-4 py-3 space-x-1">
+        <a href="${req.evidence1}" target="_blank" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">1</a>
+        <a href="${req.evidence2}" target="_blank" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">2</a>
+        <a href="${req.evidence3}" target="_blank" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">3</a>
+      </td>
+      <td class="px-4 py-3">${req.duration}</td>
+      <td class="px-4 py-3 text-gray-500">${timestamp}</td>
+      <td class="px-4 py-3">
+        <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold
           ${req.status === 'Approved' ? 'bg-green-100 text-green-800' : ''}
-          ${req.status === 'Denied' ? 'bg-red-100 text-red-800' : ''}">
+          ${req.status === 'Denied' ? 'bg-red-100 text-red-800' : ''}
+          ${req.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+        ">
           ${req.status}
         </span>
       </td>
-      <td class="px-4 py-2 space-x-2">
+      <td class="px-4 py-3 space-x-2">
         ${req.status === 'Pending' ? `
-          <button onclick="approveRequest('${req.id}')" class="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded">Approve</button>
-          <button onclick="denyRequest('${req.id}')" class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1 rounded">Deny</button>
-        ` : '<span class="text-gray-400 italic">No action</span>'}
+          <button onclick="approveRequest('${req.id}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs">✅ Approve</button>
+          <button onclick="denyRequest('${req.id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">❌ Deny</button>
+        ` : `<span class="text-gray-400 italic text-xs">Reviewed</span>`}
       </td>
     `;
+
     tbody.appendChild(row);
   });
 }
+
 
 
 async function loadMyRequests() {
