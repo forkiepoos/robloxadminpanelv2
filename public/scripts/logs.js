@@ -48,7 +48,7 @@ async function searchLogs() {
       <td class="px-3 py-2 border">${log.created_by}</td>
       <td class="px-3 py-2 border">${new Date(log.timestamp).toLocaleString()}</td>
       <td class="px-3 py-2 border">
-        <button onclick="editLog(${log.id})" class="text-blue-600 font-bold">✏️</button>
+        ${canEdit(log.type) ? `<button onclick='editLog(${JSON.stringify(log)})' class="text-blue-600 font-bold">✏️</button>` : ''}
         <button onclick="deleteLog(${log.id})" class="text-red-600 font-bold ml-2">🗑️</button>
       </td>
     `;
@@ -76,9 +76,13 @@ async function deleteLog(id) {
 }
 
 function editLog(log) {
+  if (!canEdit(log.type)) {
+    return alert('❌ Insufficient permission to edit this type of log.');
+  }
+
   const newType = prompt('New type (Warn/Kick/Ban):', log.type);
   const newReason = prompt('New reason:', log.reason);
-  const newDuration = newType === 'Ban' ? prompt('New duration:', log.duration) : '';
+  const newDuration = newType === 'Ban' ? prompt('New duration:', log.duration || '') : '';
 
   if (!newType || !newReason || (newType === 'Ban' && !newDuration)) return alert('Invalid input');
 
@@ -89,7 +93,7 @@ function editLog(log) {
       id: log.id,
       type: newType,
       reason: newReason,
-      duration: newDuration
+      duration: newType === 'Ban' ? newDuration : ''
     })
   }).then(res => {
     if (res.ok) searchLogs();
