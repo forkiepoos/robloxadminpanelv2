@@ -101,6 +101,47 @@ app.post('/api/submit-action', async (req, res) => {
   }
 });
 
+// ---------------- SUBMIT BAN REQUEST (Levels 1–2) ----------------
+app.post('/api/submit-ban-request', async (req, res) => {
+  const { target, reason, duration, evidence } = req.body;
+
+  const username = req.session?.user?.username;
+  const level = req.session?.user?.level;
+
+  // Only allow levels 1 or 2
+  if (!username || level >= 3) {
+    return res.status(403).send('Forbidden');
+  }
+
+  if (!target || !reason || !duration || !evidence || evidence.length !== 3) {
+    return res.status(400).send('Missing required fields');
+  }
+
+  try {
+    const { error } = await supabase.from('BanRequests').insert([
+      {
+        target,
+        reason,
+        duration,
+        evidence1: evidence[0],
+        evidence2: evidence[1],
+        evidence3: evidence[2],
+        created_by: username,
+        status: 'Pending',
+        timestamp: new Date().toISOString()
+      }
+    ]);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Ban request submission failed:', err.message);
+    res.status(500).send('Error submitting request');
+  }
+});
+
+
 // ---------------- GET AUDIT LOGS ----------------
 app.get('/api/logs', async (req, res) => {
   const { data, error } = await supabase
