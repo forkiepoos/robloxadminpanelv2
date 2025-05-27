@@ -335,6 +335,23 @@ app.post('/api/logs/edit', async (req, res) => {
   res.sendStatus(200);
 });
 
+app.get('/api/player-logs/:username', async (req, res) => {
+  const username = req.params.username;
+
+  const { data, error } = await supabase
+    .from('Logs')
+    .select('*')
+    .eq('target', username)
+    .order('timestamp', { ascending: false });
+
+  if (error) {
+    console.error('❌ Supabase error:', error.message);
+    return res.status(500).send('Error fetching logs');
+  }
+
+  res.json(data);
+});
+
 
 
 // ---------------- SERVE LOGIN PAGE ----------------
