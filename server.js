@@ -110,37 +110,33 @@ app.post('/api/delete-log', async (req, res) => {
 });
 
 // ---------------- SUBMIT BAN REQUEST ----------------
-app.post('/api/ban-request', async (req, res) => {
-  const user = req.session.user;
-  if (!user || user.level >= 3) return res.status(401).send('Unauthorized');
-  const { target, reason, duration, evidence } = req.body;
+app.post('/api/submit-action', async (req, res) => {
+  const { username, reason, action, duration, evidence } = req.body;
 
-  const { error } = await supabase.from('BanRequests').insert({
-    target,
-    reason,
-    duration,
-    evidence1: evidence[0],
-    evidence2: evidence[1],
-    evidence3: evidence[2],
-    requested_by: user.username,
-    status: 'Pending',
-  });
+  console.log('🔍 Incoming action:', req.body);
+
+  if (!username || !reason || !action || evidence.length !== 3) {
+    return res.status(400).send('Missing required fields');
+  }
 
   if (error) return res.status(500).send('Failed to submit request');
   res.sendStatus(200);
 });
 
 // ---------------- GET MY BAN REQUESTS ----------------
-app.get('/api/my-ban-requests', async (req, res) => {
-  const user = req.session.user;
-  if (!user || user.level >= 3) return res.status(401).send('Unauthorized');
-  const { data, error } = await supabase
-    .from('BanRequests')
-    .select('*')
-    .eq('requested_by', user.username)
-    .order('id', { ascending: false });
-  if (error) return res.status(500).send('Failed to fetch requests');
-  res.json(data);
+app.get('/api/logs', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('Logs')
+      .select('*')
+      .order('timestamp', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('❌ /api/logs error:', err);
+    res.status(500).send('Failed to fetch logs');
+  }
 });
 
 // ---------------- GET ALL BAN REQUESTS (review) ----------------
