@@ -21,8 +21,9 @@ async function getUser() {
   currentUser = data;
   adjustUI();
   loadLogs();
+  
   if (currentUser.level < 3) loadMyBanRequests();
-  else loadAllBanRequests();
+else loadReviewRequests(); // ✅ FIXED
 }
 
 function adjustUI() {
