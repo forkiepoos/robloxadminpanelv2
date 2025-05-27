@@ -36,7 +36,7 @@ const password = req.body.password.trim();
     .eq('username', username)
     .eq('password', password)
     .eq('username', username.trim().toLowerCase())
-    .maybesingle();
+    .maybeSingle();
 
   console.log('Supabase result:', data);
   console.log('Supabase error:', error);
