@@ -50,17 +50,58 @@
       <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Submit Action</button>
     </form>
 
-<!-- SECTION: For Permission Level 3 -->
-<div id="review-ban-requests-section" class="hidden">
-  <h2 class="text-xl font-bold mb-2">Ban Request Review</h2>
-  <table id="review-requests-table" class="min-w-full border text-sm"></table>
+<!-- Ban Request Form (for level 1–2) -->
+<!-- 📤 BAN REQUEST FORM (Visible to Level 1–2 only) -->
+<div id="ban-request-form" class="hidden p-4 border rounded-lg bg-white shadow mt-6">
+  <h2 class="text-xl font-bold mb-4">Submit a Ban Request</h2>
+  <form id="ban-request-form-element" class="space-y-4">
+    <div>
+      <label class="block font-medium mb-1" for="ban-target">Target Username</label>
+      <input type="text" id="ban-target" class="w-full border px-3 py-2 rounded" placeholder="Player123" required />
+    </div>
+
+    <div>
+      <label class="block font-medium mb-1" for="ban-reason">Reason</label>
+      <textarea id="ban-reason" class="w-full border px-3 py-2 rounded" placeholder="Explain the reason..." required></textarea>
+    </div>
+
+    <div>
+      <label class="block font-medium mb-1" for="ban-duration">Ban Duration</label>
+      <select id="ban-duration" class="w-full border px-3 py-2 rounded">
+        <option value="1 Day">1 Day</option>
+        <option value="3 Days">3 Days</option>
+        <option value="10 Days">10 Days</option>
+        <option value="14 Days">14 Days</option>
+        <option value="Perm">Permanent</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block font-medium mb-1" for="ban-evidence">Evidence Links</label>
+      <div class="flex gap-2 items-center">
+        <input type="text" id="ban-evidence-input" class="flex-1 border px-3 py-2 rounded" placeholder="https://example.com" />
+        <button type="button" id="ban-add-evidence" class="bg-blue-600 text-white px-3 py-1 rounded">+</button>
+        <span id="ban-evidence-counter" class="text-sm text-gray-600">0/3</span>
+      </div>
+      <ul id="ban-evidence-list" class="mt-2 list-disc list-inside text-sm text-gray-700"></ul>
+    </div>
+
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+      Submit Ban Request
+    </button>
+  </form>
 </div>
 
-<!-- SECTION: For Permission Level 1–2 -->
-<div id="my-ban-requests-section" class="hidden mt-8">
-  <h2 class="text-xl font-bold mb-2">My Ban Requests</h2>
-  <table id="my-requests-table" class="min-w-full border text-sm"></table>
+<!-- Review Panel (for level 3 only) -->
+<div id="review-ban-requests-section" class="hidden">
+  <table id="review-requests-table"></table>
 </div>
+
+<!-- My Requests (for level 1–2) -->
+<div id="my-ban-requests-section" class="hidden">
+  <table id="my-requests-table"></table>
+</div>
+
 
 </body>
 </html>
